@@ -1,0 +1,110 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+out/
+.webpack/
+*.tgz
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.settings/
+*.sublime-workspace
+*.sublime-project
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Testing
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+
+# Database files
+db/*.db
+db/*.db-journal
+db/*.db-shm
+db/*.db-wal
+
+# User data (local uploads/outputs)
+data/documents/*
+data/output/*
+data/cache/*
+!data/documents/.gitkeep
+!data/output/.gitkeep
+!data/cache/.gitkeep
+
+# LLM models (too large for git)
+data/models/*
+!data/models/.gitkeep
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Package manager locks (keep one)
+# yarn.lock
+# pnpm-lock.yaml
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Electron specific
+release-builds/
+*.dmg
+*.AppImage
+*.snap
+*.deb
+*.rpm
+
+# Native modules rebuild
+build/Release/
+
+# Optional npm cache directory
+.npm/
+
+# Optional eslint cache
+.eslintcache
+
+# Qdrant data (if running locally without Docker)
+qdrant_data/
+
+# Certificates
+*.pem
+*.key
+*.crt
+
+# Secrets
+secrets/
+*.secret

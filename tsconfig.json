@@ -1,0 +1,60 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "baseUrl": "./src",
+    "paths": {
+      "@main/*": ["main/*"],
+      "@renderer/*": ["renderer/*"],
+      "@backend/*": ["backend/*"],
+      "@agents/*": ["backend/agents/*"],
+      "@workflows/*": ["backend/workflows/*"],
+      "@services/*": ["backend/services/*"],
+      "@rag/*": ["backend/rag/*"],
+      "@utils/*": ["backend/utils/*"],
+      "@components/*": ["renderer/components/*"],
+      "@pages/*": ["renderer/pages/*"],
+      "@stores/*": ["renderer/stores/*"],
+      "@config/*": ["../config/*"]
+    },
+    "allowSyntheticDefaultImports": true,
+    "noEmit": false,
+    "isolatedModules": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "allowImportingTsExtensions": false,
+    "verbatimModuleSyntax": false
+  },
+  "include": [
+    "src/**/*",
+    "config/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "out",
+    ".webpack",
+    "tests/**/*.test.ts",
+    "tests/**/*.spec.ts"
+  ],
+  "ts-node": {
+    "compilerOptions": {
+      "module": "CommonJS"
+    }
+  }
+}
