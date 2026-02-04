@@ -14,7 +14,7 @@ import { logger } from './utils/logger';
 import { llmService } from '../backend/services/llmService';
 import { dbService, UserProfile } from '../backend/services/dbService';
 import { ocrService } from '../backend/services/ocrService';
-import { documentOrganizer, ExpenseCategory } from '../backend/services/documentOrganizer';
+import { documentOrganizer } from '../backend/services/documentOrganizer';
 import { formGenerator, L1FormData, L1abFormData, L1kFormData } from '../backend/services/formGenerator';
 import { guideGenerator } from '../backend/services/guideGenerator';
 
@@ -22,10 +22,9 @@ import { guideGenerator } from '../backend/services/guideGenerator';
 import { interviewerAgent } from '../backend/agents/interviewerAgent';
 import { documentInspectorAgent } from '../backend/agents/documentInspectorAgent';
 import { analyzerAgent, TaxProfile } from '../backend/agents/analyzerAgent';
-import { reportWriterAgent } from '../backend/agents/reportWriterAgent';
 
 // Import RAG
-import { knowledgeBase } from '../backend/rag/knowledgeBase';
+import { knowledgeBase, KnowledgeCategory } from '../backend/rag/knowledgeBase';
 import { retriever } from '../backend/rag/retriever';
 
 // State
@@ -268,7 +267,7 @@ export function registerIpcHandlers(): void {
             stored_path: analysis.filePath,
             category: analysis.classification.category,
             subcategory: analysis.classification.subcategory,
-            extracted_data: analysis.extractedData as Record<string, unknown>,
+            extracted_data: analysis.extractedData as unknown as Record<string, unknown>,
             ocr_confidence: analysis.ocrResult.confidence,
             interview_id: currentInterviewId || undefined
           });
@@ -607,7 +606,6 @@ export function registerIpcHandlers(): void {
     logger.info('Exporting guide to:', outputPath);
 
     try {
-      const interviewResponses = interviewerAgent.getResponses();
       const taxYear = new Date().getFullYear() - 1;
 
       const guide = await guideGenerator.generateGuide({
@@ -656,7 +654,7 @@ export function registerIpcHandlers(): void {
     try {
       const response = await retriever.query({
         question,
-        category: category as ExpenseCategory | undefined,
+        category: category as KnowledgeCategory | undefined,
         includeSourceCitations: true
       });
 

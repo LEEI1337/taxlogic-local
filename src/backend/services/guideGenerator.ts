@@ -411,7 +411,7 @@ TaxLogic.local speichert Ihre digitalen Kopien lokal auf Ihrem Computer.`
     };
   }
 
-  private generateFinanzOnlineSection(formData: L1FormData, hasL1ab: boolean, hasL1k: boolean): GuideSection {
+  private generateFinanzOnlineSection(formData: L1FormData, _hasL1ab: boolean, _hasL1k: boolean): GuideSection {
     return {
       title: '🖥️ Einreichung über FinanzOnline',
       content: 'Folgen Sie diesen Schritten, um Ihre Arbeitnehmerveranlagung über FinanzOnline einzureichen.',

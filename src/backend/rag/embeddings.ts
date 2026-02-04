@@ -7,7 +7,7 @@
  * - Caching for performance
  */
 
-import { llmService } from '../services/llmService';
+// Ollama embeddings - no external service import needed
 
 // ========================================
 // Type Definitions
@@ -32,7 +32,7 @@ export interface BatchEmbeddingResult {
 
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
 const EMBEDDING_MODEL = 'nomic-embed-text:latest';
-const EMBEDDING_DIMENSIONS = 768; // nomic-embed-text output dimensions
+// nomic-embed-text outputs 768-dimensional vectors
 
 // Simple in-memory cache
 const embeddingCache = new Map<string, number[]>();

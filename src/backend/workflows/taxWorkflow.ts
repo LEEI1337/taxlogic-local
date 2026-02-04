@@ -10,10 +10,9 @@
  * 6. Final Review - Validate and package output
  */
 
-import { StateGraph, END, START } from '@langchain/langgraph';
+import { StateGraph, END, START, Annotation } from '@langchain/langgraph';
 import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
-import { llmService } from '../services/llmService';
-import { dbService, UserProfile, Interview, Document, Expense, Calculation, TaxForm } from '../services/dbService';
+import { UserProfile } from '../services/dbService';
 import { ocrService, OCRResult, ExtractedData } from '../services/ocrService';
 import { documentOrganizer, ExpenseCategory, ClassificationResult } from '../services/documentOrganizer';
 import { formGenerator, L1FormData, L1abFormData, L1kFormData, GeneratedForm } from '../services/formGenerator';
@@ -681,54 +680,50 @@ function isInterviewComplete(state: TaxFilingState): 'continue_interview' | 'rou
 // Build Workflow
 // ========================================
 
+// Define state annotation for LangGraph 0.2+
+const TaxFilingAnnotation = Annotation.Root({
+  user_id: Annotation<string>({ reducer: (_, b) => b }),
+  tax_year: Annotation<number>({ reducer: (_, b) => b }),
+  interview_id: Annotation<string | undefined>({ reducer: (_, b) => b }),
+  user_profile: Annotation<UserProfile>({ reducer: (a, b) => ({ ...a, ...b }) }),
+  interview_responses: Annotation<Record<string, unknown>>({ reducer: (a, b) => ({ ...a, ...b }) }),
+  interview_complete: Annotation<boolean>({ reducer: (_, b) => b }),
+  current_question_index: Annotation<number>({ reducer: (_, b) => b }),
+  documents: Annotation<ProcessedDocument[]>({ reducer: (_, b) => b }),
+  pending_documents: Annotation<string[]>({ reducer: (_, b) => b }),
+  expenses: Annotation<ExpenseRecord[]>({ reducer: (_, b) => b }),
+  calculation: Annotation<CalculationResult | null>({ reducer: (_, b) => b }),
+  generated_forms: Annotation<GeneratedForm[]>({ reducer: (_, b) => b }),
+  guide: Annotation<PersonalizedGuide | null>({ reducer: (_, b) => b }),
+  messages: Annotation<BaseMessage[]>({ reducer: (a, b) => [...a, ...(b || [])] }),
+  current_step: Annotation<WorkflowStep>({ reducer: (_, b) => b }),
+  errors: Annotation<string[]>({ reducer: (a, b) => [...a, ...(b || [])] }),
+  completed_steps: Annotation<WorkflowStep[]>({ reducer: (_, b) => b })
+});
+
 export function createTaxFilingWorkflow() {
-  const workflow = new StateGraph<TaxFilingState>({
-    channels: {
-      user_id: { value: (a: string, b: string) => b ?? a },
-      tax_year: { value: (a: number, b: number) => b ?? a },
-      interview_id: { value: (a: string | undefined, b: string | undefined) => b ?? a },
-      user_profile: { value: (a: UserProfile, b: UserProfile) => ({ ...a, ...b }) },
-      interview_responses: { value: (a: Record<string, unknown>, b: Record<string, unknown>) => ({ ...a, ...b }) },
-      interview_complete: { value: (a: boolean, b: boolean) => b ?? a },
-      current_question_index: { value: (a: number, b: number) => b ?? a },
-      documents: { value: (a: ProcessedDocument[], b: ProcessedDocument[]) => b ?? a },
-      pending_documents: { value: (a: string[], b: string[]) => b ?? a },
-      expenses: { value: (a: ExpenseRecord[], b: ExpenseRecord[]) => b ?? a },
-      calculation: { value: (a: CalculationResult | null, b: CalculationResult | null) => b ?? a },
-      generated_forms: { value: (a: GeneratedForm[], b: GeneratedForm[]) => b ?? a },
-      guide: { value: (a: PersonalizedGuide | null, b: PersonalizedGuide | null) => b ?? a },
-      messages: { value: (a: BaseMessage[], b: BaseMessage[]) => [...a, ...(b || [])] },
-      current_step: { value: (a: WorkflowStep, b: WorkflowStep) => b ?? a },
-      errors: { value: (a: string[], b: string[]) => [...a, ...(b || [])] },
-      completed_steps: { value: (a: WorkflowStep[], b: WorkflowStep[]) => b ?? a }
-    }
-  });
-
-  // Add nodes
-  workflow.addNode('interview', interviewNode);
-  workflow.addNode('document_processing', documentProcessingNode);
-  workflow.addNode('analysis', analysisNode);
-  workflow.addNode('form_generation', formGenerationNode);
-  workflow.addNode('guide_generation', guideGenerationNode);
-  workflow.addNode('final_review', finalReviewNode);
-
-  // Add edges
-  workflow.addEdge(START, 'interview');
-
-  workflow.addConditionalEdges('interview', isInterviewComplete, {
-    continue_interview: 'interview',
-    route_after_interview: 'document_processing'
-  });
-
-  workflow.addConditionalEdges('document_processing', shouldProcessDocuments, {
-    document_processing: 'document_processing',
-    analysis: 'analysis'
-  });
-
-  workflow.addEdge('analysis', 'form_generation');
-  workflow.addEdge('form_generation', 'guide_generation');
-  workflow.addEdge('guide_generation', 'final_review');
-  workflow.addEdge('final_review', END);
+  const workflow = new StateGraph(TaxFilingAnnotation)
+    // Add nodes
+    .addNode('interview', interviewNode)
+    .addNode('document_processing', documentProcessingNode)
+    .addNode('analysis', analysisNode)
+    .addNode('form_generation', formGenerationNode)
+    .addNode('guide_generation', guideGenerationNode)
+    .addNode('final_review', finalReviewNode)
+    // Add edges
+    .addEdge(START, 'interview')
+    .addConditionalEdges('interview', isInterviewComplete, {
+      continue_interview: 'interview',
+      route_after_interview: 'document_processing'
+    })
+    .addConditionalEdges('document_processing', shouldProcessDocuments, {
+      document_processing: 'document_processing',
+      analysis: 'analysis'
+    })
+    .addEdge('analysis', 'form_generation')
+    .addEdge('form_generation', 'guide_generation')
+    .addEdge('guide_generation', 'final_review')
+    .addEdge('final_review', END);
 
   return workflow.compile();
 }

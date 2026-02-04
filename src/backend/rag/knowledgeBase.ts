@@ -9,7 +9,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { embeddingsService, EmbeddingResult } from './embeddings';
+import { embeddingsService } from './embeddings';
 
 // ========================================
 // Type Definitions

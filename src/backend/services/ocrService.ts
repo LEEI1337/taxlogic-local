@@ -8,9 +8,8 @@
  * - Structured data extraction (amounts, dates, vendors)
  */
 
-import Tesseract, { Worker, createWorker, RecognizeResult } from 'tesseract.js';
+import { Worker, createWorker, RecognizeResult } from 'tesseract.js';
 import * as fs from 'fs';
-import * as path from 'path';
 
 // ========================================
 // Type Definitions
@@ -164,7 +163,7 @@ class OCRService {
   /**
    * Process a PDF file (first page only for now)
    */
-  async processPDF(pdfPath: string): Promise<OCRResult> {
+  async processPDF(_pdfPath: string): Promise<OCRResult> {
     // For PDF processing, we'd need to convert to images first
     // Using pdf-parse for text-based PDFs, Tesseract for scanned PDFs
     // This is a simplified implementation

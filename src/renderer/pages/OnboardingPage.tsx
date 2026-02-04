@@ -17,9 +17,7 @@ function OnboardingPage(): React.ReactElement {
     llmStatus,
     checkLLMStatus,
     isCheckingLLM,
-    setUserProfile,
-    settings,
-    updateSettings
+    setUserProfile
   } = useAppStore();
 
   const [currentStep, setCurrentStep] = useState<OnboardingStep>('welcome');
@@ -264,7 +262,7 @@ function OnboardingPage(): React.ReactElement {
 
         {/* Step indicator */}
         <div className="flex justify-center gap-2 mt-6">
-          {(['welcome', 'llm-check', 'profile', 'complete'] as OnboardingStep[]).map((step, index) => (
+          {(['welcome', 'llm-check', 'profile', 'complete'] as OnboardingStep[]).map((step) => (
             <div
               key={step}
               className={`w-2 h-2 rounded-full transition-colors ${

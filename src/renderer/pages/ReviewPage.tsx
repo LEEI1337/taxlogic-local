@@ -29,7 +29,7 @@ interface TaxAnalysis {
 
 function ReviewPage(): React.ReactElement {
   const navigate = useNavigate();
-  const { currentTaxYear, setCurrentStep, addNotification } = useAppStore();
+  const { setCurrentStep, addNotification } = useAppStore();
 
   const [analysis, setAnalysis] = useState<TaxAnalysis | null>(null);
   const [isLoading, setIsLoading] = useState(true);

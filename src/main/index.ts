@@ -5,7 +5,7 @@
  * It handles window management, IPC communication, and app lifecycle.
  */
 
-import { app, BrowserWindow, Menu, ipcMain, shell, dialog } from 'electron';
+import { app, BrowserWindow, Menu, shell, dialog } from 'electron';
 import path from 'path';
 import { registerIpcHandlers } from './ipcHandlers';
 import { createApplicationMenu } from './menu';
@@ -83,7 +83,6 @@ function createWindow(): void {
 
   // Prevent navigation to external URLs
   mainWindow.webContents.on('will-navigate', (event, navigationUrl) => {
-    const parsedUrl = new URL(navigationUrl);
     // Only allow navigation to our webpack dev server or local files
     if (!navigationUrl.startsWith('file://') &&
         !navigationUrl.includes('localhost')) {
@@ -93,7 +92,7 @@ function createWindow(): void {
   });
 
   // Log render process errors
-  mainWindow.webContents.on('render-process-gone', (event, details) => {
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
     logger.error('Render process gone:', details);
   });
 
@@ -162,13 +161,13 @@ process.on('uncaughtException', (error) => {
   app.quit();
 });
 
-process.on('unhandledRejection', (reason, promise) => {
+process.on('unhandledRejection', (reason) => {
   logger.error('Unhandled promise rejection:', reason);
 });
 
 // Security: Limit navigation and new windows
-app.on('web-contents-created', (event, contents) => {
-  contents.on('will-navigate', (event, navigationUrl) => {
+app.on('web-contents-created', (_event, contents) => {
+  contents.on('will-navigate', (_navEvent, navigationUrl) => {
     // Log navigation attempts
     logger.info(`Navigation attempt to: ${navigationUrl}`);
   });

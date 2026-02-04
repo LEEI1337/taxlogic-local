@@ -8,7 +8,7 @@
  * - Quality assessment
  */
 
-import { llmService, Message } from '../services/llmService';
+import { llmService } from '../services/llmService';
 import { ocrService, OCRResult, ExtractedData } from '../services/ocrService';
 import { documentOrganizer, ExpenseCategory, ClassificationResult } from '../services/documentOrganizer';
 import * as path from 'path';

@@ -8,7 +8,7 @@
  * - Handles Austrian tax-specific terminology
  */
 
-import { llmService, Message, LLMResponse } from '../services/llmService';
+import { llmService, Message } from '../services/llmService';
 
 // ========================================
 // Type Definitions

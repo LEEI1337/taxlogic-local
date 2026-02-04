@@ -19,6 +19,7 @@ export interface UserProfile {
   employmentStatus?: 'employee' | 'freelancer' | 'business_owner' | 'retired' | 'other';
   location?: string;
   taxYear?: number;
+  [key: string]: string | number | undefined;
 }
 
 export interface AppSettings {

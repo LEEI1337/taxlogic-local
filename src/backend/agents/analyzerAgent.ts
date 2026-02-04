@@ -8,8 +8,7 @@
  * - Tax-saving recommendations
  */
 
-import { llmService, Message } from '../services/llmService';
-import { ExpenseCategory } from '../services/documentOrganizer';
+import { llmService } from '../services/llmService';
 
 // ========================================
 // Type Definitions
@@ -170,7 +169,7 @@ const TAX_BRACKETS_2024 = [
 
 const WERBUNGSKOSTEN_PAUSCHALE = 132;
 const VERKEHRSABSETZBETRAG = 463;
-const ARBEITNEHMERABSETZBETRAG = 0; // Integrated into tax brackets since 2020
+// ARBEITNEHMERABSETZBETRAG = 0 - Integrated into tax brackets since 2020 (no longer used separately)
 
 const HOME_OFFICE_PER_DAY = 3;
 const HOME_OFFICE_MAX = 300;

@@ -11,8 +11,7 @@ function SettingsPage(): React.ReactElement {
     updateSettings,
     llmStatus,
     checkLLMStatus,
-    isCheckingLLM,
-    resetSettings
+    isCheckingLLM
   } = useAppStore();
 
   return (

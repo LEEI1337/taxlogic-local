@@ -8,10 +8,10 @@
  * - Audit preparation documents
  */
 
-import { llmService, Message } from '../services/llmService';
+import { llmService } from '../services/llmService';
 import { TaxCalculationResult, TaxProfile } from './analyzerAgent';
 import { DocumentAnalysis } from './documentInspectorAgent';
-import { PersonalizedGuide, guideGenerator, GuideGenerationInput } from '../services/guideGenerator';
+import { guideGenerator, GuideGenerationInput, PersonalizedGuide } from '../services/guideGenerator';
 import { L1FormData } from '../services/formGenerator';
 
 // ========================================
@@ -148,7 +148,7 @@ export class ReportWriterAgent {
   async generateReport(input: ReportInput): Promise<TaxReport> {
     console.log('[ReportWriter] Generating report for user', input.userId);
 
-    const { userId, taxYear, profile, calculation, documents, interviewResponses } = input;
+    const { userId, taxYear, profile, calculation, documents } = input;
     const generatedAt = new Date().toISOString();
     const reportId = `report_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
