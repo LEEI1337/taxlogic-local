@@ -282,12 +282,16 @@ taxlogic-local/
 │       ├── workflows/           # LangGraph workflows
 │       │   └── taxWorkflow.ts
 │       ├── services/            # Core services
-│       │   ├── llmService.ts
-│       │   ├── dbService.ts
-│       │   ├── ocrService.ts
-│       │   └── formGenerator.ts
+│       │   ├── llmService.ts       # Unified LLM interface (Ollama/LM Studio/Claude)
+│       │   ├── dbService.ts        # SQLite database (sql.js)
+│       │   ├── ocrService.ts       # Tesseract.js OCR processing
+│       │   ├── documentOrganizer.ts # AI-powered document classification
+│       │   ├── formGenerator.ts    # L1/L1ab/L1k PDF generation
+│       │   └── guideGenerator.ts   # Step-by-step guide generator
 │       └── rag/                 # RAG system
-│           └── knowledgeBase.ts
+│           ├── embeddings.ts       # Ollama embeddings service
+│           ├── knowledgeBase.ts    # Vector store with Austrian tax law
+│           └── retriever.ts        # Semantic search with citations
 │
 ├── data/                        # User data (gitignored)
 │   ├── documents/               # Uploaded files
@@ -355,21 +359,35 @@ FEATURE_RAG_ENABLED=true
 
 ### Phase 1 - MVP ✅
 - [x] Electron + React foundation
-- [x] Interview flow with LLM
-- [x] Basic OCR
-- [x] L1 form generation
+- [x] Basic UI components (6 pages)
+- [x] Zustand state management
+- [x] LLM service (Ollama/LM Studio/Claude)
+- [x] SQLite database with sql.js
 
-### Phase 2 - In Progress 🚧
-- [ ] Advanced RAG system
-- [ ] Full form support (L1ab, L1k)
-- [ ] Document auto-classification
-- [ ] Step-by-step guide generation
+### Phase 2 - Core Features ✅
+- [x] **OCR Service** - Tesseract.js integration for receipt scanning
+- [x] **Document Organizer** - AI-powered expense categorization
+- [x] **Form Generator** - L1, L1ab, L1k PDF generation with PDFKit
+- [x] **Guide Generator** - Personalized step-by-step filing guides
+- [x] **LangGraph Workflow** - 6-node stateful tax filing process
+- [x] **Multi-Agent System**
+  - [x] Interviewer Agent - Intelligent tax interview conductor
+  - [x] Document Inspector Agent - OCR + classification + analysis
+  - [x] Analyzer Agent - Austrian tax calculations & optimization
+  - [x] Report Writer Agent - Comprehensive report generation
+- [x] **RAG System** - Knowledge base with Austrian tax law
+  - [x] Embeddings service (Ollama nomic-embed-text)
+  - [x] Vector knowledge base (in-memory + file persistence)
+  - [x] Semantic retriever with source citations
+- [x] **Complete IPC Integration** - All services connected to frontend
 
 ### Phase 3 - Planned 📋
 - [ ] FinanzOnline API integration
-- [ ] Multi-language support
-- [ ] Cloud backup (optional)
+- [ ] Multi-language support (DE/EN)
+- [ ] Cloud backup (optional, encrypted)
 - [ ] Mobile companion app
+- [ ] Qdrant vector database integration
+- [ ] Voice input for interviews
 
 ---
 

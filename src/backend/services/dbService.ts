@@ -1,7 +1,8 @@
 /**
  * TaxLogic.local - Database Service
  *
- * SQLite-based local database for storing:
+ * SQLite-based local database using sql.js (pure JavaScript, no native deps)
+ * Stores:
  * - User profiles
  * - Interview responses
  * - Documents & OCR results
@@ -10,8 +11,9 @@
  * - Generated forms
  */
 
-import Database from 'better-sqlite3';
-import path from 'path';
+import initSqlJs, { Database as SqlJsDatabase } from 'sql.js';
+import * as fs from 'fs';
+import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
 // ========================================
@@ -96,8 +98,9 @@ export interface TaxForm {
 // ========================================
 
 class DatabaseService {
-  private db: Database.Database | null = null;
+  private db: SqlJsDatabase | null = null;
   private dbPath: string;
+  private SQL: Awaited<ReturnType<typeof initSqlJs>> | null = null;
 
   constructor(dbPath?: string) {
     this.dbPath = dbPath || path.join(process.cwd(), 'db', 'taxlogic.db');
@@ -106,14 +109,39 @@ class DatabaseService {
   /**
    * Initialize the database connection and create tables
    */
-  initialize(): void {
-    this.db = new Database(this.dbPath);
+  async initialize(): Promise<void> {
+    // Initialize sql.js
+    this.SQL = await initSqlJs();
 
-    // Enable foreign keys and WAL mode for better performance
-    this.db.pragma('foreign_keys = ON');
-    this.db.pragma('journal_mode = WAL');
+    // Ensure db directory exists
+    const dbDir = path.dirname(this.dbPath);
+    if (!fs.existsSync(dbDir)) {
+      fs.mkdirSync(dbDir, { recursive: true });
+    }
 
-    this.createTables();
+    // Load existing database or create new one
+    if (fs.existsSync(this.dbPath)) {
+      const buffer = fs.readFileSync(this.dbPath);
+      this.db = new this.SQL.Database(buffer);
+    } else {
+      this.db = new this.SQL.Database();
+    }
+
+    // Enable foreign keys
+    this.db.run('PRAGMA foreign_keys = ON');
+
+    await this.createTables();
+    this.saveToFile();
+  }
+
+  /**
+   * Save database to file
+   */
+  private saveToFile(): void {
+    if (!this.db) return;
+    const data = this.db.export();
+    const buffer = Buffer.from(data);
+    fs.writeFileSync(this.dbPath, buffer);
   }
 
   /**
@@ -121,6 +149,7 @@ class DatabaseService {
    */
   close(): void {
     if (this.db) {
+      this.saveToFile();
       this.db.close();
       this.db = null;
     }
@@ -129,35 +158,35 @@ class DatabaseService {
   /**
    * Create all database tables
    */
-  private createTables(): void {
+  private async createTables(): Promise<void> {
     if (!this.db) throw new Error('Database not initialized');
 
     // Users table
-    this.db.exec(`
+    this.db.run(`
       CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
         profile_data TEXT NOT NULL DEFAULT '{}',
-        created_at TEXT NOT NULL DEFAULT (datetime('now')),
-        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
       )
     `);
 
     // Interviews table
-    this.db.exec(`
+    this.db.run(`
       CREATE TABLE IF NOT EXISTS interviews (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
         tax_year INTEGER NOT NULL,
         responses TEXT NOT NULL DEFAULT '{}',
         status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft', 'completed', 'submitted')),
-        created_at TEXT NOT NULL DEFAULT (datetime('now')),
-        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       )
     `);
 
     // Documents table
-    this.db.exec(`
+    this.db.run(`
       CREATE TABLE IF NOT EXISTS documents (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
@@ -168,14 +197,14 @@ class DatabaseService {
         subcategory TEXT,
         extracted_data TEXT NOT NULL DEFAULT '{}',
         ocr_confidence REAL NOT NULL DEFAULT 0,
-        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        created_at TEXT NOT NULL,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
         FOREIGN KEY (interview_id) REFERENCES interviews(id) ON DELETE SET NULL
       )
     `);
 
     // Expenses table
-    this.db.exec(`
+    this.db.run(`
       CREATE TABLE IF NOT EXISTS expenses (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
@@ -185,14 +214,14 @@ class DatabaseService {
         date TEXT NOT NULL,
         description TEXT,
         receipt_ids TEXT NOT NULL DEFAULT '[]',
-        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        created_at TEXT NOT NULL,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
         FOREIGN KEY (interview_id) REFERENCES interviews(id) ON DELETE SET NULL
       )
     `);
 
     // Calculations table
-    this.db.exec(`
+    this.db.run(`
       CREATE TABLE IF NOT EXISTS calculations (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
@@ -202,14 +231,14 @@ class DatabaseService {
         total_deductions REAL NOT NULL DEFAULT 0,
         estimated_refund REAL NOT NULL DEFAULT 0,
         calculation_details TEXT NOT NULL DEFAULT '{}',
-        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        created_at TEXT NOT NULL,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
         FOREIGN KEY (interview_id) REFERENCES interviews(id) ON DELETE CASCADE
       )
     `);
 
     // Forms table
-    this.db.exec(`
+    this.db.run(`
       CREATE TABLE IF NOT EXISTS forms (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
@@ -218,23 +247,21 @@ class DatabaseService {
         pdf_path TEXT,
         json_data TEXT NOT NULL DEFAULT '{}',
         status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft', 'ready', 'submitted')),
-        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        created_at TEXT NOT NULL,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
         FOREIGN KEY (interview_id) REFERENCES interviews(id) ON DELETE CASCADE
       )
     `);
 
     // Create indexes for common queries
-    this.db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_interviews_user_id ON interviews(user_id);
-      CREATE INDEX IF NOT EXISTS idx_interviews_tax_year ON interviews(tax_year);
-      CREATE INDEX IF NOT EXISTS idx_documents_user_id ON documents(user_id);
-      CREATE INDEX IF NOT EXISTS idx_documents_category ON documents(category);
-      CREATE INDEX IF NOT EXISTS idx_expenses_user_id ON expenses(user_id);
-      CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(category);
-      CREATE INDEX IF NOT EXISTS idx_calculations_interview_id ON calculations(interview_id);
-      CREATE INDEX IF NOT EXISTS idx_forms_interview_id ON forms(interview_id);
-    `);
+    this.db.run(`CREATE INDEX IF NOT EXISTS idx_interviews_user_id ON interviews(user_id)`);
+    this.db.run(`CREATE INDEX IF NOT EXISTS idx_interviews_tax_year ON interviews(tax_year)`);
+    this.db.run(`CREATE INDEX IF NOT EXISTS idx_documents_user_id ON documents(user_id)`);
+    this.db.run(`CREATE INDEX IF NOT EXISTS idx_documents_category ON documents(category)`);
+    this.db.run(`CREATE INDEX IF NOT EXISTS idx_expenses_user_id ON expenses(user_id)`);
+    this.db.run(`CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(category)`);
+    this.db.run(`CREATE INDEX IF NOT EXISTS idx_calculations_interview_id ON calculations(interview_id)`);
+    this.db.run(`CREATE INDEX IF NOT EXISTS idx_forms_interview_id ON forms(interview_id)`);
   }
 
   // ========================================
@@ -247,24 +274,44 @@ class DatabaseService {
     const id = uuidv4();
     const now = new Date().toISOString();
 
-    this.db.prepare(`
-      INSERT INTO users (id, profile_data, created_at, updated_at)
-      VALUES (?, ?, ?, ?)
-    `).run(id, JSON.stringify(profile), now, now);
+    this.db.run(
+      `INSERT INTO users (id, profile_data, created_at, updated_at) VALUES (?, ?, ?, ?)`,
+      [id, JSON.stringify(profile), now, now]
+    );
 
+    this.saveToFile();
     return { id, profile_data: profile, created_at: now, updated_at: now };
   }
 
   getUser(id: string): User | null {
     if (!this.db) throw new Error('Database not initialized');
 
-    const row = this.db.prepare('SELECT * FROM users WHERE id = ?').get(id) as any;
-    if (!row) return null;
+    const result = this.db.exec('SELECT * FROM users WHERE id = ?', [id]);
+    if (result.length === 0 || result[0].values.length === 0) return null;
+
+    const row = result[0].values[0];
+    const columns = result[0].columns;
+    const obj = this.rowToObject(columns, row);
 
     return {
-      ...row,
-      profile_data: JSON.parse(row.profile_data)
-    };
+      ...obj,
+      profile_data: JSON.parse(obj.profile_data as string)
+    } as User;
+  }
+
+  getAllUsers(): User[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const result = this.db.exec('SELECT * FROM users ORDER BY created_at DESC');
+    if (result.length === 0) return [];
+
+    return result[0].values.map((row) => {
+      const obj = this.rowToObject(result[0].columns, row);
+      return {
+        ...obj,
+        profile_data: JSON.parse(obj.profile_data as string)
+      } as User;
+    });
   }
 
   updateUser(id: string, profile: Partial<UserProfile>): void {
@@ -274,11 +321,14 @@ class DatabaseService {
     if (!user) throw new Error(`User ${id} not found`);
 
     const updatedProfile = { ...user.profile_data, ...profile };
+    const now = new Date().toISOString();
 
-    this.db.prepare(`
-      UPDATE users SET profile_data = ?, updated_at = datetime('now')
-      WHERE id = ?
-    `).run(JSON.stringify(updatedProfile), id);
+    this.db.run(
+      `UPDATE users SET profile_data = ?, updated_at = ? WHERE id = ?`,
+      [JSON.stringify(updatedProfile), now, id]
+    );
+
+    this.saveToFile();
   }
 
   // ========================================
@@ -291,11 +341,13 @@ class DatabaseService {
     const id = uuidv4();
     const now = new Date().toISOString();
 
-    this.db.prepare(`
-      INSERT INTO interviews (id, user_id, tax_year, responses, status, created_at, updated_at)
-      VALUES (?, ?, ?, '{}', 'draft', ?, ?)
-    `).run(id, userId, taxYear, now, now);
+    this.db.run(
+      `INSERT INTO interviews (id, user_id, tax_year, responses, status, created_at, updated_at)
+       VALUES (?, ?, ?, '{}', 'draft', ?, ?)`,
+      [id, userId, taxYear, now, now]
+    );
 
+    this.saveToFile();
     return {
       id,
       user_id: userId,
@@ -310,42 +362,58 @@ class DatabaseService {
   getInterview(id: string): Interview | null {
     if (!this.db) throw new Error('Database not initialized');
 
-    const row = this.db.prepare('SELECT * FROM interviews WHERE id = ?').get(id) as any;
-    if (!row) return null;
+    const result = this.db.exec('SELECT * FROM interviews WHERE id = ?', [id]);
+    if (result.length === 0 || result[0].values.length === 0) return null;
+
+    const row = result[0].values[0];
+    const obj = this.rowToObject(result[0].columns, row);
 
     return {
-      ...row,
-      responses: JSON.parse(row.responses)
-    };
+      ...obj,
+      responses: JSON.parse(obj.responses as string)
+    } as Interview;
   }
 
   getInterviewsByUser(userId: string): Interview[] {
     if (!this.db) throw new Error('Database not initialized');
 
-    const rows = this.db.prepare('SELECT * FROM interviews WHERE user_id = ? ORDER BY created_at DESC').all(userId) as any[];
+    const result = this.db.exec(
+      'SELECT * FROM interviews WHERE user_id = ? ORDER BY created_at DESC',
+      [userId]
+    );
+    if (result.length === 0) return [];
 
-    return rows.map((row) => ({
-      ...row,
-      responses: JSON.parse(row.responses)
-    }));
+    return result[0].values.map((row) => {
+      const obj = this.rowToObject(result[0].columns, row);
+      return {
+        ...obj,
+        responses: JSON.parse(obj.responses as string)
+      } as Interview;
+    });
   }
 
   updateInterviewResponses(id: string, responses: Record<string, unknown>): void {
     if (!this.db) throw new Error('Database not initialized');
 
-    this.db.prepare(`
-      UPDATE interviews SET responses = ?, updated_at = datetime('now')
-      WHERE id = ?
-    `).run(JSON.stringify(responses), id);
+    const now = new Date().toISOString();
+    this.db.run(
+      `UPDATE interviews SET responses = ?, updated_at = ? WHERE id = ?`,
+      [JSON.stringify(responses), now, id]
+    );
+
+    this.saveToFile();
   }
 
   updateInterviewStatus(id: string, status: Interview['status']): void {
     if (!this.db) throw new Error('Database not initialized');
 
-    this.db.prepare(`
-      UPDATE interviews SET status = ?, updated_at = datetime('now')
-      WHERE id = ?
-    `).run(status, id);
+    const now = new Date().toISOString();
+    this.db.run(
+      `UPDATE interviews SET status = ?, updated_at = ? WHERE id = ?`,
+      [status, now, id]
+    );
+
+    this.saveToFile();
   }
 
   // ========================================
@@ -361,22 +429,24 @@ class DatabaseService {
     const id = uuidv4();
     const now = new Date().toISOString();
 
-    this.db.prepare(`
-      INSERT INTO documents (id, user_id, interview_id, original_filename, stored_path, category, subcategory, extracted_data, ocr_confidence, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      id,
-      userId,
-      data.interview_id || null,
-      data.original_filename,
-      data.stored_path,
-      data.category,
-      data.subcategory || null,
-      JSON.stringify(data.extracted_data),
-      data.ocr_confidence,
-      now
+    this.db.run(
+      `INSERT INTO documents (id, user_id, interview_id, original_filename, stored_path, category, subcategory, extracted_data, ocr_confidence, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        userId,
+        data.interview_id || null,
+        data.original_filename,
+        data.stored_path,
+        data.category,
+        data.subcategory || null,
+        JSON.stringify(data.extracted_data),
+        data.ocr_confidence,
+        now
+      ]
     );
 
+    this.saveToFile();
     return {
       id,
       user_id: userId,
@@ -385,26 +455,55 @@ class DatabaseService {
     };
   }
 
+  getDocument(id: string): Document | null {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const result = this.db.exec('SELECT * FROM documents WHERE id = ?', [id]);
+    if (result.length === 0 || result[0].values.length === 0) return null;
+
+    const row = result[0].values[0];
+    const obj = this.rowToObject(result[0].columns, row);
+
+    return {
+      ...obj,
+      extracted_data: JSON.parse(obj.extracted_data as string)
+    } as Document;
+  }
+
   getDocumentsByUser(userId: string): Document[] {
     if (!this.db) throw new Error('Database not initialized');
 
-    const rows = this.db.prepare('SELECT * FROM documents WHERE user_id = ? ORDER BY created_at DESC').all(userId) as any[];
+    const result = this.db.exec(
+      'SELECT * FROM documents WHERE user_id = ? ORDER BY created_at DESC',
+      [userId]
+    );
+    if (result.length === 0) return [];
 
-    return rows.map((row) => ({
-      ...row,
-      extracted_data: JSON.parse(row.extracted_data)
-    }));
+    return result[0].values.map((row) => {
+      const obj = this.rowToObject(result[0].columns, row);
+      return {
+        ...obj,
+        extracted_data: JSON.parse(obj.extracted_data as string)
+      } as Document;
+    });
   }
 
   getDocumentsByCategory(userId: string, category: string): Document[] {
     if (!this.db) throw new Error('Database not initialized');
 
-    const rows = this.db.prepare('SELECT * FROM documents WHERE user_id = ? AND category = ?').all(userId, category) as any[];
+    const result = this.db.exec(
+      'SELECT * FROM documents WHERE user_id = ? AND category = ?',
+      [userId, category]
+    );
+    if (result.length === 0) return [];
 
-    return rows.map((row) => ({
-      ...row,
-      extracted_data: JSON.parse(row.extracted_data)
-    }));
+    return result[0].values.map((row) => {
+      const obj = this.rowToObject(result[0].columns, row);
+      return {
+        ...obj,
+        extracted_data: JSON.parse(obj.extracted_data as string)
+      } as Document;
+    });
   }
 
   // ========================================
@@ -417,21 +516,23 @@ class DatabaseService {
     const id = uuidv4();
     const now = new Date().toISOString();
 
-    this.db.prepare(`
-      INSERT INTO expenses (id, user_id, interview_id, category, amount, date, description, receipt_ids, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      id,
-      userId,
-      data.interview_id || null,
-      data.category,
-      data.amount,
-      data.date,
-      data.description,
-      JSON.stringify(data.receipt_ids),
-      now
+    this.db.run(
+      `INSERT INTO expenses (id, user_id, interview_id, category, amount, date, description, receipt_ids, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        userId,
+        data.interview_id || null,
+        data.category,
+        data.amount,
+        data.date,
+        data.description,
+        JSON.stringify(data.receipt_ids),
+        now
+      ]
     );
 
+    this.saveToFile();
     return {
       id,
       user_id: userId,
@@ -443,30 +544,44 @@ class DatabaseService {
   getExpensesByUser(userId: string): Expense[] {
     if (!this.db) throw new Error('Database not initialized');
 
-    const rows = this.db.prepare('SELECT * FROM expenses WHERE user_id = ? ORDER BY date DESC').all(userId) as any[];
+    const result = this.db.exec(
+      'SELECT * FROM expenses WHERE user_id = ? ORDER BY date DESC',
+      [userId]
+    );
+    if (result.length === 0) return [];
 
-    return rows.map((row) => ({
-      ...row,
-      receipt_ids: JSON.parse(row.receipt_ids)
-    }));
+    return result[0].values.map((row) => {
+      const obj = this.rowToObject(result[0].columns, row);
+      return {
+        ...obj,
+        receipt_ids: JSON.parse(obj.receipt_ids as string)
+      } as Expense;
+    });
   }
 
   getExpensesByCategory(userId: string, category: string): Expense[] {
     if (!this.db) throw new Error('Database not initialized');
 
-    const rows = this.db.prepare('SELECT * FROM expenses WHERE user_id = ? AND category = ?').all(userId, category) as any[];
+    const result = this.db.exec(
+      'SELECT * FROM expenses WHERE user_id = ? AND category = ?',
+      [userId, category]
+    );
+    if (result.length === 0) return [];
 
-    return rows.map((row) => ({
-      ...row,
-      receipt_ids: JSON.parse(row.receipt_ids)
-    }));
+    return result[0].values.map((row) => {
+      const obj = this.rowToObject(result[0].columns, row);
+      return {
+        ...obj,
+        receipt_ids: JSON.parse(obj.receipt_ids as string)
+      } as Expense;
+    });
   }
 
   getTotalExpensesByCategory(userId: string, interviewId?: string): Record<string, number> {
     if (!this.db) throw new Error('Database not initialized');
 
     let query = 'SELECT category, SUM(amount) as total FROM expenses WHERE user_id = ?';
-    const params: (string | undefined)[] = [userId];
+    const params: (string | number)[] = [userId];
 
     if (interviewId) {
       query += ' AND interview_id = ?';
@@ -475,12 +590,17 @@ class DatabaseService {
 
     query += ' GROUP BY category';
 
-    const rows = this.db.prepare(query).all(...params) as any[];
+    const result = this.db.exec(query, params);
+    if (result.length === 0) return {};
 
-    return rows.reduce((acc, row) => {
-      acc[row.category] = row.total;
-      return acc;
-    }, {} as Record<string, number>);
+    const totals: Record<string, number> = {};
+    result[0].values.forEach((row) => {
+      const category = row[0] as string;
+      const total = row[1] as number;
+      totals[category] = total;
+    });
+
+    return totals;
   }
 
   // ========================================
@@ -497,21 +617,23 @@ class DatabaseService {
     const id = uuidv4();
     const now = new Date().toISOString();
 
-    this.db.prepare(`
-      INSERT INTO calculations (id, user_id, interview_id, tax_year, total_income, total_deductions, estimated_refund, calculation_details, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      id,
-      userId,
-      interviewId,
-      data.tax_year,
-      data.total_income,
-      data.total_deductions,
-      data.estimated_refund,
-      JSON.stringify(data.calculation_details),
-      now
+    this.db.run(
+      `INSERT INTO calculations (id, user_id, interview_id, tax_year, total_income, total_deductions, estimated_refund, calculation_details, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        userId,
+        interviewId,
+        data.tax_year,
+        data.total_income,
+        data.total_deductions,
+        data.estimated_refund,
+        JSON.stringify(data.calculation_details),
+        now
+      ]
     );
 
+    this.saveToFile();
     return {
       id,
       user_id: userId,
@@ -524,16 +646,19 @@ class DatabaseService {
   getLatestCalculation(interviewId: string): Calculation | null {
     if (!this.db) throw new Error('Database not initialized');
 
-    const row = this.db.prepare(
-      'SELECT * FROM calculations WHERE interview_id = ? ORDER BY created_at DESC LIMIT 1'
-    ).get(interviewId) as any;
+    const result = this.db.exec(
+      'SELECT * FROM calculations WHERE interview_id = ? ORDER BY created_at DESC LIMIT 1',
+      [interviewId]
+    );
+    if (result.length === 0 || result[0].values.length === 0) return null;
 
-    if (!row) return null;
+    const row = result[0].values[0];
+    const obj = this.rowToObject(result[0].columns, row);
 
     return {
-      ...row,
-      calculation_details: JSON.parse(row.calculation_details)
-    };
+      ...obj,
+      calculation_details: JSON.parse(obj.calculation_details as string)
+    } as Calculation;
   }
 
   // ========================================
@@ -551,11 +676,13 @@ class DatabaseService {
     const id = uuidv4();
     const now = new Date().toISOString();
 
-    this.db.prepare(`
-      INSERT INTO forms (id, user_id, interview_id, form_type, json_data, status, created_at)
-      VALUES (?, ?, ?, ?, ?, 'draft', ?)
-    `).run(id, userId, interviewId, formType, JSON.stringify(jsonData), now);
+    this.db.run(
+      `INSERT INTO forms (id, user_id, interview_id, form_type, json_data, status, created_at)
+       VALUES (?, ?, ?, ?, ?, 'draft', ?)`,
+      [id, userId, interviewId, formType, JSON.stringify(jsonData), now]
+    );
 
+    this.saveToFile();
     return {
       id,
       user_id: userId,
@@ -570,21 +697,57 @@ class DatabaseService {
   updateFormPath(id: string, pdfPath: string): void {
     if (!this.db) throw new Error('Database not initialized');
 
-    this.db.prepare(`
-      UPDATE forms SET pdf_path = ?, status = 'ready'
-      WHERE id = ?
-    `).run(pdfPath, id);
+    this.db.run(
+      `UPDATE forms SET pdf_path = ?, status = 'ready' WHERE id = ?`,
+      [pdfPath, id]
+    );
+
+    this.saveToFile();
   }
 
   getFormsByInterview(interviewId: string): TaxForm[] {
     if (!this.db) throw new Error('Database not initialized');
 
-    const rows = this.db.prepare('SELECT * FROM forms WHERE interview_id = ?').all(interviewId) as any[];
+    const result = this.db.exec(
+      'SELECT * FROM forms WHERE interview_id = ?',
+      [interviewId]
+    );
+    if (result.length === 0) return [];
 
-    return rows.map((row) => ({
-      ...row,
-      json_data: JSON.parse(row.json_data)
-    }));
+    return result[0].values.map((row) => {
+      const obj = this.rowToObject(result[0].columns, row);
+      return {
+        ...obj,
+        json_data: JSON.parse(obj.json_data as string)
+      } as TaxForm;
+    });
+  }
+
+  getForm(id: string): TaxForm | null {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const result = this.db.exec('SELECT * FROM forms WHERE id = ?', [id]);
+    if (result.length === 0 || result[0].values.length === 0) return null;
+
+    const row = result[0].values[0];
+    const obj = this.rowToObject(result[0].columns, row);
+
+    return {
+      ...obj,
+      json_data: JSON.parse(obj.json_data as string)
+    } as TaxForm;
+  }
+
+  // ========================================
+  // Utility Methods
+  // ========================================
+
+  private rowToObject(columns: string[], values: unknown[]): Record<string, unknown> {
+    const obj: Record<string, unknown> = {};
+    columns.forEach((col, i) => {
+      obj[col] = values[i];
+    });
+    return obj;
   }
 }
 
