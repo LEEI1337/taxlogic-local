@@ -67,6 +67,10 @@ data/cache/*
 data/models/*
 !data/models/.gitkeep
 
+# Knowledge base documents (user-specific)
+data/knowledge/*
+!data/knowledge/.gitkeep
+
 # Temporary files
 tmp/
 temp/
