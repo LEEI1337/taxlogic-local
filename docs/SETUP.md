@@ -32,7 +32,7 @@ LM Studio - https://lmstudio.ai
 ### 1. Repository klonen
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/taxlogic-local.git
+git clone https://github.com/LEEI1337/taxlogic-local.git
 cd taxlogic-local
 ```
 
