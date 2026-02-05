@@ -8,6 +8,7 @@
  */
 
 import { llmService, Message } from '../services/llmService';
+
 import { knowledgeBase, SearchResult, KnowledgeCategory } from './knowledgeBase';
 import { embeddingsService } from './embeddings';
 

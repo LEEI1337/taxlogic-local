@@ -8,11 +8,12 @@
  * - Quality assessment
  */
 
+import * as path from 'path';
+import * as fs from 'fs';
+
 import { llmService } from '../services/llmService';
 import { ocrService, OCRResult, ExtractedData } from '../services/ocrService';
 import { documentOrganizer, ExpenseCategory, ClassificationResult } from '../services/documentOrganizer';
-import * as path from 'path';
-import * as fs from 'fs';
 
 // ========================================
 // Type Definitions

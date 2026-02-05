@@ -520,8 +520,12 @@ export class InterviewerAgent {
    */
   private parseResponse(response: string, question: InterviewQuestion): unknown {
     switch (question.type) {
-      case 'number':
-        return parseFloat(response.replace(/[€,.\s]/g, '').replace(',', '.')) || 0;
+      case 'number': {
+        // European format: 1.234,56 or 1 234,56 -> 1234.56
+        // Remove currency symbols and thousands separators (dots and spaces), then replace decimal comma with dot
+        const normalized = response.replace(/[€]/g, '').replace(/[\s.]/g, '').replace(',', '.');
+        return parseFloat(normalized) || 0;
+      }
       case 'boolean': {
         const lower = response.toLowerCase();
         return lower === 'ja' || lower === 'yes' || lower === 'true' || lower === '1';

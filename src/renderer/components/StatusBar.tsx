@@ -3,6 +3,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
+
 import { useAppStore } from '../stores/appStore';
 
 function StatusBar(): React.ReactElement {

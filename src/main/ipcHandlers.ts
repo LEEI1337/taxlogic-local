@@ -5,10 +5,10 @@
  * Connects all backend services to the frontend.
  */
 
-import { ipcMain, app, dialog, shell, BrowserWindow } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
-import { logger } from './utils/logger';
+
+import { ipcMain, app, dialog, shell, BrowserWindow } from 'electron';
 
 // Import services
 import { llmService } from '../backend/services/llmService';
@@ -17,15 +17,16 @@ import { ocrService } from '../backend/services/ocrService';
 import { documentOrganizer } from '../backend/services/documentOrganizer';
 import { formGenerator, L1FormData, L1abFormData, L1kFormData } from '../backend/services/formGenerator';
 import { guideGenerator } from '../backend/services/guideGenerator';
-
 // Import agents
 import { interviewerAgent } from '../backend/agents/interviewerAgent';
 import { documentInspectorAgent } from '../backend/agents/documentInspectorAgent';
 import { analyzerAgent, TaxProfile } from '../backend/agents/analyzerAgent';
-
 // Import RAG
 import { knowledgeBase, KnowledgeCategory } from '../backend/rag/knowledgeBase';
 import { retriever } from '../backend/rag/retriever';
+
+
+import { logger } from './utils/logger';
 
 // State
 let currentUserId: string | null = null;

@@ -4,7 +4,9 @@
 
 import React from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+
 import { useAppStore } from '../stores/appStore';
+
 import Sidebar from './Sidebar';
 import StatusBar from './StatusBar';
 import NotificationContainer from './NotificationContainer';

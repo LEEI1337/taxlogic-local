@@ -7,9 +7,11 @@
  * - Audit readiness documentation
  */
 
-import PDFDocument from 'pdfkit';
 import * as fs from 'fs';
 import * as path from 'path';
+
+import PDFDocument from 'pdfkit';
+
 import { L1FormData } from './formGenerator';
 
 // ========================================

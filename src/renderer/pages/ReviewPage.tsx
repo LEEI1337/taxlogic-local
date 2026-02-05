@@ -4,8 +4,9 @@
  * Review calculated deductions and tax analysis before export.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+
 import { useAppStore } from '../stores/appStore';
 
 interface DeductionCategory {
@@ -35,11 +36,7 @@ function ReviewPage(): React.ReactElement {
   const [isLoading, setIsLoading] = useState(true);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadAnalysis();
-  }, []);
-
-  const loadAnalysis = async (): Promise<void> => {
+  const loadAnalysis = useCallback(async (): Promise<void> => {
     setIsLoading(true);
     try {
       // Simulate loading analysis
@@ -99,7 +96,11 @@ function ReviewPage(): React.ReactElement {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [addNotification]);
+
+  useEffect(() => {
+    loadAnalysis();
+  }, [loadAnalysis]);
 
   const formatCurrency = (amount: number): string => {
     return new Intl.NumberFormat('de-AT', {

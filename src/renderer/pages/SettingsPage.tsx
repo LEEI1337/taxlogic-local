@@ -3,7 +3,8 @@
  */
 
 import React from 'react';
-import { useAppStore } from '../stores/appStore';
+
+import { useAppStore, AppSettings } from '../stores/appStore';
 
 function SettingsPage(): React.ReactElement {
   const {
@@ -28,7 +29,7 @@ function SettingsPage(): React.ReactElement {
             <label className="label">Bevorzugter LLM-Dienst</label>
             <select
               value={settings.preferredLLM}
-              onChange={(e) => updateSettings({ preferredLLM: e.target.value as any })}
+              onChange={(e) => updateSettings({ preferredLLM: e.target.value as AppSettings['preferredLLM'] })}
               className="input"
             >
               <optgroup label="Lokal">
@@ -241,7 +242,7 @@ function SettingsPage(): React.ReactElement {
             <label className="label">Design</label>
             <select
               value={settings.theme}
-              onChange={(e) => updateSettings({ theme: e.target.value as any })}
+              onChange={(e) => updateSettings({ theme: e.target.value as AppSettings['theme'] })}
               className="input"
             >
               <option value="dark">Dunkel</option>
@@ -254,7 +255,7 @@ function SettingsPage(): React.ReactElement {
             <label className="label">Sprache</label>
             <select
               value={settings.language}
-              onChange={(e) => updateSettings({ language: e.target.value as any })}
+              onChange={(e) => updateSettings({ language: e.target.value as AppSettings['language'] })}
               className="input"
             >
               <option value="de">Deutsch</option>
