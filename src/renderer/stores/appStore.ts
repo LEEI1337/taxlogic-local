@@ -9,6 +9,9 @@ export interface LLMStatus {
   ollama: boolean;
   lmStudio: boolean;
   claude: boolean;
+  openai: boolean;
+  gemini: boolean;
+  openaiCompatible: boolean;
 }
 
 export interface UserProfile {
@@ -25,9 +28,16 @@ export interface UserProfile {
 export interface AppSettings {
   theme: 'dark' | 'light' | 'system';
   language: 'de' | 'en';
-  preferredLLM: 'ollama' | 'lmStudio' | 'claude';
+  preferredLLM: 'ollama' | 'lmStudio' | 'claude' | 'openai' | 'gemini' | 'openaiCompatible';
   ollamaModel: string;
   anthropicApiKey?: string;
+  openaiApiKey?: string;
+  openaiModel?: string;
+  geminiApiKey?: string;
+  geminiModel?: string;
+  openaiCompatibleUrl?: string;
+  openaiCompatibleApiKey?: string;
+  openaiCompatibleModel?: string;
 }
 
 interface AppState {
@@ -103,7 +113,10 @@ export const useAppStore = create<AppState>()(
       llmStatus: {
         ollama: false,
         lmStudio: false,
-        claude: false
+        claude: false,
+        openai: false,
+        gemini: false,
+        openaiCompatible: false
       },
       isCheckingLLM: false,
       checkLLMStatus: async () => {

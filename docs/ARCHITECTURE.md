@@ -51,6 +51,13 @@ TaxLogic.local ist eine Electron-basierte Desktop-Anwendung für die KI-gestütz
 │   │   11434      │   │   1234       │   │  (Optional)  │                    │
 │   └──────────────┘   └──────────────┘   └──────────────┘                    │
 │                                                                              │
+│   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐                    │
+│   │   OpenAI     │   │   Gemini     │   │  OpenAI-     │                    │
+│   │  (ChatGPT)   │   │  (Google)    │   │ Compatible   │                    │
+│   │   (BYOK)     │   │   (BYOK)     │   │  (Custom)    │                    │
+│   │   Cloud      │   │   Cloud      │   │  Any URL     │                    │
+│   └──────────────┘   └──────────────┘   └──────────────┘                    │
+│                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 

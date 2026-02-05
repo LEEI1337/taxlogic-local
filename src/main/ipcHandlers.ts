@@ -132,7 +132,7 @@ export function registerIpcHandlers(): void {
       return status;
     } catch (error) {
       logger.error('Error checking LLM status:', error);
-      return { ollama: false, lmStudio: false, claude: false };
+      return { ollama: false, lmStudio: false, claude: false, openai: false, gemini: false, openaiCompatible: false };
     }
   });
 

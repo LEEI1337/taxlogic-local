@@ -31,9 +31,18 @@ function SettingsPage(): React.ReactElement {
               onChange={(e) => updateSettings({ preferredLLM: e.target.value as any })}
               className="input"
             >
-              <option value="ollama">Ollama (Lokal)</option>
-              <option value="lmStudio">LM Studio (Lokal)</option>
-              <option value="claude">Claude API (Cloud)</option>
+              <optgroup label="Lokal">
+                <option value="ollama">Ollama (Lokal)</option>
+                <option value="lmStudio">LM Studio (Lokal)</option>
+              </optgroup>
+              <optgroup label="Cloud (BYOK)">
+                <option value="claude">Claude API (Anthropic)</option>
+                <option value="openai">OpenAI / ChatGPT</option>
+                <option value="gemini">Google Gemini</option>
+              </optgroup>
+              <optgroup label="Andere">
+                <option value="openaiCompatible">OpenAI-kompatibel (Custom)</option>
+              </optgroup>
             </select>
           </div>
 
@@ -63,9 +72,122 @@ function SettingsPage(): React.ReactElement {
                 placeholder="sk-ant-..."
               />
               <p className="text-xs text-neutral-500 mt-1">
-                Ihr API-Schlussel wird nur lokal gespeichert.
+                Ihr API-Schlüssel wird nur lokal gespeichert.
               </p>
             </div>
+          )}
+
+          {/* OpenAI Configuration */}
+          {settings.preferredLLM === 'openai' && (
+            <>
+              <div>
+                <label className="label">OpenAI API Key</label>
+                <input
+                  type="password"
+                  value={settings.openaiApiKey || ''}
+                  onChange={(e) => updateSettings({ openaiApiKey: e.target.value })}
+                  className="input"
+                  placeholder="sk-..."
+                />
+                <p className="text-xs text-neutral-500 mt-1">
+                  Ihr API-Schlüssel wird nur lokal gespeichert.
+                </p>
+              </div>
+              <div>
+                <label className="label">OpenAI Modell</label>
+                <select
+                  value={settings.openaiModel || 'gpt-4o'}
+                  onChange={(e) => updateSettings({ openaiModel: e.target.value })}
+                  className="input"
+                >
+                  <option value="gpt-4o">GPT-4o (Empfohlen)</option>
+                  <option value="gpt-4o-mini">GPT-4o Mini</option>
+                  <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                  <option value="gpt-4">GPT-4</option>
+                  <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                </select>
+              </div>
+            </>
+          )}
+
+          {/* Gemini Configuration */}
+          {settings.preferredLLM === 'gemini' && (
+            <>
+              <div>
+                <label className="label">Google Gemini API Key</label>
+                <input
+                  type="password"
+                  value={settings.geminiApiKey || ''}
+                  onChange={(e) => updateSettings({ geminiApiKey: e.target.value })}
+                  className="input"
+                  placeholder="AIza..."
+                />
+                <p className="text-xs text-neutral-500 mt-1">
+                  Erhalten Sie einen kostenlosen API-Schlüssel bei{' '}
+                  <a
+                    href="https://aistudio.google.com/app/apikey"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-accent-400 hover:underline"
+                  >
+                    Google AI Studio
+                  </a>
+                </p>
+              </div>
+              <div>
+                <label className="label">Gemini Modell</label>
+                <select
+                  value={settings.geminiModel || 'gemini-1.5-flash'}
+                  onChange={(e) => updateSettings({ geminiModel: e.target.value })}
+                  className="input"
+                >
+                  <option value="gemini-1.5-flash">Gemini 1.5 Flash (Kostenlos)</option>
+                  <option value="gemini-1.5-flash-8b">Gemini 1.5 Flash-8B</option>
+                  <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                  <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash (Experimental)</option>
+                  <option value="gemini-1.0-pro">Gemini 1.0 Pro</option>
+                </select>
+              </div>
+            </>
+          )}
+
+          {/* OpenAI-Compatible Configuration */}
+          {settings.preferredLLM === 'openaiCompatible' && (
+            <>
+              <div>
+                <label className="label">API Endpoint URL</label>
+                <input
+                  type="text"
+                  value={settings.openaiCompatibleUrl || ''}
+                  onChange={(e) => updateSettings({ openaiCompatibleUrl: e.target.value })}
+                  className="input"
+                  placeholder="http://localhost:8080"
+                />
+                <p className="text-xs text-neutral-500 mt-1">
+                  Kompatibel mit vLLM, text-generation-webui, LocalAI, etc.
+                </p>
+              </div>
+              <div>
+                <label className="label">API Key (optional)</label>
+                <input
+                  type="password"
+                  value={settings.openaiCompatibleApiKey || ''}
+                  onChange={(e) => updateSettings({ openaiCompatibleApiKey: e.target.value })}
+                  className="input"
+                  placeholder="Leer lassen wenn nicht benötigt"
+                />
+              </div>
+              <div>
+                <label className="label">Modellname</label>
+                <input
+                  type="text"
+                  value={settings.openaiCompatibleModel || ''}
+                  onChange={(e) => updateSettings({ openaiCompatibleModel: e.target.value })}
+                  className="input"
+                  placeholder="z.B. mistral-7b"
+                />
+              </div>
+            </>
           )}
 
           {/* Connection Status */}
@@ -77,7 +199,7 @@ function SettingsPage(): React.ReactElement {
                 className="btn-ghost text-xs"
                 disabled={isCheckingLLM}
               >
-                {isCheckingLLM ? 'Prufe...' : 'Aktualisieren'}
+                {isCheckingLLM ? 'Prüfe...' : 'Aktualisieren'}
               </button>
             </div>
             <div className="grid grid-cols-3 gap-3 text-sm">
@@ -92,6 +214,18 @@ function SettingsPage(): React.ReactElement {
               <div className="flex items-center gap-2">
                 <div className={`status-dot ${llmStatus.claude ? 'status-dot-online' : 'status-dot-offline'}`} />
                 <span className={llmStatus.claude ? 'text-green-400' : 'text-neutral-500'}>Claude</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className={`status-dot ${llmStatus.openai ? 'status-dot-online' : 'status-dot-offline'}`} />
+                <span className={llmStatus.openai ? 'text-green-400' : 'text-neutral-500'}>OpenAI</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className={`status-dot ${llmStatus.gemini ? 'status-dot-online' : 'status-dot-offline'}`} />
+                <span className={llmStatus.gemini ? 'text-green-400' : 'text-neutral-500'}>Gemini</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className={`status-dot ${llmStatus.openaiCompatible ? 'status-dot-online' : 'status-dot-offline'}`} />
+                <span className={llmStatus.openaiCompatible ? 'text-green-400' : 'text-neutral-500'}>Custom</span>
               </div>
             </div>
           </div>
