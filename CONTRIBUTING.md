@@ -27,9 +27,11 @@ First off, thank you for considering contributing to TaxLogic.local! It's people
 
 ## Code of Conduct
 
-This project and everyone participating in it is governed by our Code of Conduct. By participating, you are expected to uphold this code. Please report unacceptable behavior to the maintainers.
+This project and everyone participating in it is governed by our [Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code. Please report unacceptable behavior to conduct@taxlogic.local.
 
-### Our Standards
+For details, please read our full [Code of Conduct](CODE_OF_CONDUCT.md).
+
+### Quick Summary
 
 - **Be respectful** - Treat everyone with respect and kindness
 - **Be constructive** - Provide helpful feedback and suggestions
@@ -155,7 +157,11 @@ Use descriptive branch names:
 
 ## Coding Standards
 
-### TypeScript
+For detailed coding standards, please refer to our comprehensive [Coding Standards Guide](docs/CODING_STANDARDS.md).
+
+### Quick Overview
+
+#### TypeScript
 
 - Use strict TypeScript (`strict: true`)
 - Always define types for function parameters and return values
@@ -179,7 +185,7 @@ function getUser(id: any): any {
 }
 ```
 
-### React Components
+#### React Components
 
 - Use functional components with hooks
 - Use meaningful component names
@@ -201,13 +207,13 @@ function InterviewPage(): React.ReactElement {
 export default InterviewPage;
 ```
 
-### CSS/Styling
+#### CSS/Styling
 
 - Use TailwindCSS utility classes
 - Create component classes for repeated patterns
 - Follow the existing design system (colors, spacing)
 
-### File Organization
+#### File Organization
 
 ```
 src/
@@ -384,6 +390,19 @@ Feel free to:
 - Open an issue for questions
 - Join our community discussions
 - Reach out to maintainers
+
+---
+
+## Related Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Code of Conduct](CODE_OF_CONDUCT.md) | Community guidelines and behavior expectations |
+| [Security Policy](SECURITY.md) | Security guidelines and vulnerability reporting |
+| [Coding Standards](docs/CODING_STANDARDS.md) | Detailed coding standards and best practices |
+| [Governance](docs/GOVERNANCE.md) | Project governance and decision making |
+| [Architecture](docs/ARCHITECTURE.md) | System architecture and design |
+| [API Reference](docs/API.md) | Complete API documentation |
 
 ---
 
