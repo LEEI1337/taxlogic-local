@@ -522,10 +522,11 @@ export class InterviewerAgent {
     switch (question.type) {
       case 'number':
         return parseFloat(response.replace(/[€,.\s]/g, '').replace(',', '.')) || 0;
-      case 'boolean':
+      case 'boolean': {
         const lower = response.toLowerCase();
         return lower === 'ja' || lower === 'yes' || lower === 'true' || lower === '1';
-      case 'choice':
+      }
+      case 'choice': {
         // Find the matching option
         const lowerResponse = response.toLowerCase();
         return (
@@ -533,6 +534,7 @@ export class InterviewerAgent {
             (opt) => opt.toLowerCase() === lowerResponse || opt.toLowerCase().startsWith(lowerResponse)
           ) || response
         );
+      }
       default:
         return response.trim();
     }
