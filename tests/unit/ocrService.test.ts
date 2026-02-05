@@ -8,7 +8,7 @@
  * - Currency detection
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import OCRService, { OCRResult } from '../../src/backend/services/ocrService';
 
 // We don't test the actual OCR processing since it requires Tesseract
