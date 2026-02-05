@@ -4,12 +4,15 @@
  * Unified interface for multiple LLM providers:
  * - Ollama (local, primary)
  * - LM Studio (local, secondary)
- * - Claude API (cloud, BYOK fallback)
+ * - Claude API (cloud, BYOK)
+ * - OpenAI/ChatGPT (cloud, BYOK)
+ * - Google Gemini (cloud, BYOK)
+ * - OpenAI-compatible endpoints (for other providers)
  */
 
 import Anthropic from '@anthropic-ai/sdk';
 
-export type LLMProvider = 'ollama' | 'lmStudio' | 'claude';
+export type LLMProvider = 'ollama' | 'lmStudio' | 'claude' | 'openai' | 'gemini' | 'openaiCompatible';
 
 export interface LLMConfig {
   provider: LLMProvider;
@@ -19,6 +22,14 @@ export interface LLMConfig {
   lmStudioModel?: string;
   anthropicApiKey?: string;
   anthropicModel?: string;
+  openaiApiKey?: string;
+  openaiModel?: string;
+  openaiBaseUrl?: string;
+  geminiApiKey?: string;
+  geminiModel?: string;
+  openaiCompatibleUrl?: string;
+  openaiCompatibleApiKey?: string;
+  openaiCompatibleModel?: string;
 }
 
 export interface Message {
@@ -39,7 +50,11 @@ const DEFAULT_CONFIG: LLMConfig = {
   ollamaModel: 'mistral:latest',
   lmStudioUrl: 'http://localhost:1234',
   lmStudioModel: 'local-model',
-  anthropicModel: 'claude-3-5-sonnet-20241022'
+  anthropicModel: 'claude-3-5-sonnet-20241022',
+  openaiModel: 'gpt-4o',
+  openaiBaseUrl: 'https://api.openai.com/v1',
+  geminiModel: 'gemini-1.5-flash',
+  openaiCompatibleModel: 'local-model'
 };
 
 class LLMService {
@@ -92,20 +107,39 @@ class LLMService {
       case 'claude':
         this.config.anthropicModel = model;
         break;
+      case 'openai':
+        this.config.openaiModel = model;
+        break;
+      case 'gemini':
+        this.config.geminiModel = model;
+        break;
+      case 'openaiCompatible':
+        this.config.openaiCompatibleModel = model;
+        break;
     }
   }
 
   /**
    * Check connection status for all providers
    */
-  async checkStatus(): Promise<{ ollama: boolean; lmStudio: boolean; claude: boolean }> {
-    const [ollama, lmStudio, claude] = await Promise.all([
+  async checkStatus(): Promise<{
+    ollama: boolean;
+    lmStudio: boolean;
+    claude: boolean;
+    openai: boolean;
+    gemini: boolean;
+    openaiCompatible: boolean;
+  }> {
+    const [ollama, lmStudio, claude, openai, gemini, openaiCompatible] = await Promise.all([
       this.checkOllamaStatus(),
       this.checkLMStudioStatus(),
-      this.checkClaudeStatus()
+      this.checkClaudeStatus(),
+      this.checkOpenAIStatus(),
+      this.checkGeminiStatus(),
+      this.checkOpenAICompatibleStatus()
     ]);
 
-    return { ollama, lmStudio, claude };
+    return { ollama, lmStudio, claude, openai, gemini, openaiCompatible };
   }
 
   /**
@@ -119,6 +153,12 @@ class LLMService {
         return this.getLMStudioModels();
       case 'claude':
         return this.getClaudeModels();
+      case 'openai':
+        return this.getOpenAIModels();
+      case 'gemini':
+        return this.getGeminiModels();
+      case 'openaiCompatible':
+        return this.getOpenAICompatibleModels();
     }
   }
 
@@ -139,6 +179,15 @@ class LLMService {
     if (this.config.provider !== 'claude' && this.anthropicClient) {
       providers.push('claude');
     }
+    if (this.config.provider !== 'openai' && this.config.openaiApiKey) {
+      providers.push('openai');
+    }
+    if (this.config.provider !== 'gemini' && this.config.geminiApiKey) {
+      providers.push('gemini');
+    }
+    if (this.config.provider !== 'openaiCompatible' && this.config.openaiCompatibleUrl) {
+      providers.push('openaiCompatible');
+    }
 
     let lastError: Error | null = null;
 
@@ -151,6 +200,12 @@ class LLMService {
             return await this.queryLMStudio(prompt, conversationHistory, systemPrompt);
           case 'claude':
             return await this.queryClaude(prompt, conversationHistory, systemPrompt);
+          case 'openai':
+            return await this.queryOpenAI(prompt, conversationHistory, systemPrompt);
+          case 'gemini':
+            return await this.queryGemini(prompt, conversationHistory, systemPrompt);
+          case 'openaiCompatible':
+            return await this.queryOpenAICompatible(prompt, conversationHistory, systemPrompt);
         }
       } catch (error) {
         lastError = error as Error;
@@ -335,6 +390,236 @@ class LLMService {
       provider: 'claude',
       model: this.config.anthropicModel || 'unknown',
       tokensUsed: response.usage?.input_tokens + response.usage?.output_tokens
+    };
+  }
+
+  // ========================================
+  // OpenAI / ChatGPT
+  // ========================================
+
+  private async checkOpenAIStatus(): Promise<boolean> {
+    return !!this.config.openaiApiKey;
+  }
+
+  private async getOpenAIModels(): Promise<string[]> {
+    // Common OpenAI models
+    return [
+      'gpt-4o',
+      'gpt-4o-mini',
+      'gpt-4-turbo',
+      'gpt-4',
+      'gpt-3.5-turbo'
+    ];
+  }
+
+  private async queryOpenAI(
+    prompt: string,
+    conversationHistory: Message[],
+    systemPrompt?: string
+  ): Promise<LLMResponse> {
+    if (!this.config.openaiApiKey) {
+      throw new Error('OpenAI API key not configured');
+    }
+
+    const messages = [
+      ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
+      ...conversationHistory,
+      { role: 'user', content: prompt }
+    ];
+
+    const baseUrl = this.config.openaiBaseUrl || 'https://api.openai.com/v1';
+    const response = await fetch(`${baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.config.openaiApiKey}`
+      },
+      body: JSON.stringify({
+        model: this.config.openaiModel || 'gpt-4o',
+        messages,
+        temperature: 0.7,
+        max_tokens: 2000
+      }),
+      signal: AbortSignal.timeout(60000)
+    });
+
+    if (!response.ok) {
+      throw new Error(`OpenAI request failed: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    return {
+      content: data.choices?.[0]?.message?.content || '',
+      provider: 'openai',
+      model: this.config.openaiModel || 'unknown',
+      tokensUsed: data.usage?.total_tokens
+    };
+  }
+
+  // ========================================
+  // Google Gemini
+  // ========================================
+
+  private async checkGeminiStatus(): Promise<boolean> {
+    return !!this.config.geminiApiKey;
+  }
+
+  private async getGeminiModels(): Promise<string[]> {
+    // Common Gemini models
+    return [
+      'gemini-1.5-flash',
+      'gemini-1.5-flash-8b',
+      'gemini-1.5-pro',
+      'gemini-2.0-flash-exp',
+      'gemini-1.0-pro'
+    ];
+  }
+
+  private async queryGemini(
+    prompt: string,
+    conversationHistory: Message[],
+    systemPrompt?: string
+  ): Promise<LLMResponse> {
+    if (!this.config.geminiApiKey) {
+      throw new Error('Gemini API key not configured');
+    }
+
+    // Build the contents array for Gemini format
+    const contents: Array<{ role: string; parts: Array<{ text: string }> }> = [];
+
+    // Add conversation history
+    for (const msg of conversationHistory) {
+      contents.push({
+        role: msg.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: msg.content }]
+      });
+    }
+
+    // Add current prompt
+    contents.push({
+      role: 'user',
+      parts: [{ text: prompt }]
+    });
+
+    const model = this.config.geminiModel || 'gemini-1.5-flash';
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.config.geminiApiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents,
+          systemInstruction: systemPrompt ? {
+            parts: [{ text: systemPrompt }]
+          } : undefined,
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 2000
+          }
+        }),
+        signal: AbortSignal.timeout(60000)
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Gemini request failed: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    return {
+      content: data.candidates?.[0]?.content?.parts?.[0]?.text || '',
+      provider: 'gemini',
+      model: model,
+      tokensUsed: data.usageMetadata?.totalTokenCount
+    };
+  }
+
+  // ========================================
+  // OpenAI-Compatible Endpoints
+  // ========================================
+
+  private async checkOpenAICompatibleStatus(): Promise<boolean> {
+    if (!this.config.openaiCompatibleUrl) {
+      return false;
+    }
+    try {
+      const response = await fetch(`${this.config.openaiCompatibleUrl}/v1/models`, {
+        method: 'GET',
+        headers: this.config.openaiCompatibleApiKey
+          ? { 'Authorization': `Bearer ${this.config.openaiCompatibleApiKey}` }
+          : {},
+        signal: AbortSignal.timeout(3000)
+      });
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  private async getOpenAICompatibleModels(): Promise<string[]> {
+    if (!this.config.openaiCompatibleUrl) {
+      return [];
+    }
+    try {
+      const response = await fetch(`${this.config.openaiCompatibleUrl}/v1/models`, {
+        headers: this.config.openaiCompatibleApiKey
+          ? { 'Authorization': `Bearer ${this.config.openaiCompatibleApiKey}` }
+          : {}
+      });
+      const data = await response.json();
+      return data.data?.map((m: { id: string }) => m.id) || [];
+    } catch {
+      return [];
+    }
+  }
+
+  private async queryOpenAICompatible(
+    prompt: string,
+    conversationHistory: Message[],
+    systemPrompt?: string
+  ): Promise<LLMResponse> {
+    if (!this.config.openaiCompatibleUrl) {
+      throw new Error('OpenAI-compatible endpoint URL not configured');
+    }
+
+    const messages = [
+      ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
+      ...conversationHistory,
+      { role: 'user', content: prompt }
+    ];
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+    if (this.config.openaiCompatibleApiKey) {
+      headers['Authorization'] = `Bearer ${this.config.openaiCompatibleApiKey}`;
+    }
+
+    const response = await fetch(`${this.config.openaiCompatibleUrl}/v1/chat/completions`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        model: this.config.openaiCompatibleModel || 'local-model',
+        messages,
+        temperature: 0.7,
+        max_tokens: 2000
+      }),
+      signal: AbortSignal.timeout(60000)
+    });
+
+    if (!response.ok) {
+      throw new Error(`OpenAI-compatible endpoint request failed: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    return {
+      content: data.choices?.[0]?.message?.content || '',
+      provider: 'openaiCompatible',
+      model: this.config.openaiCompatibleModel || 'unknown',
+      tokensUsed: data.usage?.total_tokens
     };
   }
 }

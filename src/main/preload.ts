@@ -126,7 +126,14 @@ export interface IElectronAPI {
 
   // LLM operations
   llm: {
-    checkStatus: () => Promise<{ ollama: boolean; lmStudio: boolean; claude: boolean }>;
+    checkStatus: () => Promise<{
+      ollama: boolean;
+      lmStudio: boolean;
+      claude: boolean;
+      openai: boolean;
+      gemini: boolean;
+      openaiCompatible: boolean;
+    }>;
     getAvailableModels: () => Promise<string[]>;
     setModel: (modelName: string) => Promise<void>;
     query: (prompt: string, conversationHistory?: Array<{ role: string; content: string }>) => Promise<string>;
