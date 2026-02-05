@@ -176,11 +176,12 @@ describe('InterviewerAgent', () => {
       await agent.processResponse('Vollzeit angestellt');
       await agent.processResponse('1');
       await agent.processResponse('45000');
-      await agent.processResponse('nein'); // No commute
+      const nextQuestion = await agent.processResponse('nein'); // No commute
 
-      // Next question should be home_office_days, not commute_distance
-      const context = agent.getContext();
-      expect(context?.currentQuestionId).not.toBe('commute_distance');
+      // Next question should not be any of the commute-related questions
+      expect(nextQuestion?.id).not.toBe('commute_distance');
+      expect(nextQuestion?.id).not.toBe('commute_transport');
+      expect(nextQuestion?.id).not.toBe('commute_public_feasible');
     });
 
     it('should skip work_equipment_details when work_equipment is false', async () => {
