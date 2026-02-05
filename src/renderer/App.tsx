@@ -47,54 +47,30 @@ function App(): React.ReactElement {
           {/* Onboarding (no layout) */}
           <Route
             path="/onboarding"
-            element={
-              <ErrorBoundary>
-                <OnboardingPage />
-              </ErrorBoundary>
-            }
+            element={<OnboardingPage />}
           />
 
           {/* Main app routes (with layout) */}
           <Route element={<Layout />}>
             <Route
               path="/interview"
-              element={
-                <ErrorBoundary>
-                  <InterviewPage />
-                </ErrorBoundary>
-              }
+              element={<InterviewPage />}
             />
             <Route
               path="/documents"
-              element={
-                <ErrorBoundary>
-                  <DocumentUploadPage />
-                </ErrorBoundary>
-              }
+              element={<DocumentUploadPage />}
             />
             <Route
               path="/review"
-              element={
-                <ErrorBoundary>
-                  <ReviewPage />
-                </ErrorBoundary>
-              }
+              element={<ReviewPage />}
             />
             <Route
               path="/export"
-              element={
-                <ErrorBoundary>
-                  <ExportPage />
-                </ErrorBoundary>
-              }
+              element={<ExportPage />}
             />
             <Route
               path="/settings"
-              element={
-                <ErrorBoundary>
-                  <SettingsPage />
-                </ErrorBoundary>
-              }
+              element={<SettingsPage />}
             />
           </Route>
 
