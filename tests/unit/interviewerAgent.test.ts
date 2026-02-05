@@ -135,6 +135,34 @@ describe('InterviewerAgent', () => {
       const responses = agent.getResponses();
       expect(responses.employer_count).toBe(2);
     });
+
+    it('should parse European formatted numbers for gross income correctly', async () => {
+      // Navigate to gross_income question
+      await agent.processResponse('Max Mustermann');
+      await agent.processResponse('2024');
+      await agent.processResponse('Vollzeit angestellt');
+      await agent.processResponse('1'); // employer_count
+
+      // European format with thousands separator dot and decimal comma
+      await agent.processResponse('1.234,56'); // gross income
+
+      const responses = agent.getResponses();
+      expect(responses.gross_income).toBeCloseTo(1234.56, 2);
+    });
+
+    it('should parse European formatted numbers with spaces correctly', async () => {
+      // Navigate to gross_income question
+      await agent.processResponse('Max Mustermann');
+      await agent.processResponse('2024');
+      await agent.processResponse('Vollzeit angestellt');
+      await agent.processResponse('1'); // employer_count
+
+      // European format with space as thousands separator and decimal comma
+      await agent.processResponse('1 234,56'); // gross income
+
+      const responses = agent.getResponses();
+      expect(responses.gross_income).toBeCloseTo(1234.56, 2);
+    });
   });
 
   describe('question skipping', () => {
