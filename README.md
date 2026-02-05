@@ -20,6 +20,11 @@
 [![LangGraph](https://img.shields.io/badge/LangGraph-0.2-FF6B35)](https://langchain-ai.github.io/langgraph/)
 [![Ollama](https://img.shields.io/badge/Ollama-Local%20LLM-000000)](https://ollama.ai/)
 
+[![Code of Conduct](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+[![Security Policy](https://img.shields.io/badge/Security-Policy-blue.svg)](SECURITY.md)
+[![Documentation](https://img.shields.io/badge/docs-comprehensive-green.svg)](docs/)
+
 **AI-powered tax filing assistant for Austrian individuals**
 
 [Features](#-features) • [Installation](#-installation) • [Quick Start](#-quick-start) • [Architecture](#-architecture) • [Documentation](#-documentation)
@@ -347,11 +352,21 @@ FEATURE_RAG_ENABLED=true
 
 ## 📚 Documentation
 
-- [Architecture Guide](docs/ARCHITECTURE.md)
-- [Setup Guide](docs/SETUP.md)
-- [User Manual](docs/USER_GUIDE.md)
-- [API Reference](docs/API.md)
-- [Contributing Guide](CONTRIBUTING.md)
+### User Documentation
+- [User Manual](docs/USER_GUIDE.md) - Complete user guide
+- [Setup Guide](docs/SETUP.md) - Installation and configuration
+
+### Developer Documentation
+- [Architecture Guide](docs/ARCHITECTURE.md) - System design and architecture
+- [API Reference](docs/API.md) - Complete API documentation
+- [Coding Standards](docs/CODING_STANDARDS.md) - Code style and best practices
+
+### Project Documentation
+- [Contributing Guide](CONTRIBUTING.md) - How to contribute
+- [Code of Conduct](CODE_OF_CONDUCT.md) - Community guidelines
+- [Security Policy](SECURITY.md) - Security guidelines and vulnerability reporting
+- [Changelog](CHANGELOG.md) - Version history
+- [Governance](docs/GOVERNANCE.md) - Project governance
 
 ---
 
