@@ -109,10 +109,11 @@
    - ✅ Alle Errors gefixt
    - Einige Warnings (Import-Reihenfolge) - niedrige Priorität
 
-2. **Keine Tests vorhanden**
-   - Vitest ist konfiguriert (`npm test` läuft)
-   - Keine Test-Dateien existieren
-   - Empfehlung: Unit-Tests für kritische Services hinzufügen
+2. **Tests**
+   - ✅ Vitest ist konfiguriert (`npm test` läuft)
+   - ✅ Unit Tests für AnalyzerAgent (21 Tests)
+   - ⚠️ Weitere Unit Tests für andere Services empfohlen
+   - ⚠️ E2E Tests noch ausstehend
 
 ### Mittel (Sollte geplant werden)
 
@@ -145,12 +146,30 @@
 
 ```
 Test Framework: Vitest 1.6.1 ✅ (konfiguriert)
-Test Files: 0 ❌ (keine Tests vorhanden)
+Test Files: 1 ✅ (analyzerAgent.test.ts - 21 Tests)
 E2E Framework: Playwright ✅ (konfiguriert)
 E2E Tests: 0 ❌ (keine Tests vorhanden)
 ```
 
-### Empfohlene Tests
+### Vorhandene Tests
+
+#### Unit Tests
+
+| Datei | Tests | Status |
+|-------|-------|--------|
+| `analyzerAgent.test.ts` | 21 Tests | ✅ Bestanden |
+
+**Getestete Funktionen:**
+- Steuerberechnung (progressiv)
+- Home-Office-Abzüge
+- Pendlerpauschale (klein/groß)
+- Kirchensteuer (mit Cap)
+- Absetzbeträge (Verkehrs-, Familien-, Alleinerzieher-)
+- Werbungskosten-Pauschale
+- Krankheitskosten mit Selbstbehalt
+- Empfehlungen und Warnungen
+
+### Empfohlene weitere Tests
 
 #### Unit Tests (Priorität: Hoch)
 
@@ -158,7 +177,6 @@ E2E Tests: 0 ❌ (keine Tests vorhanden)
 |---------|------------------|
 | `llmService` | Connection check, Model switching, Error handling |
 | `dbService` | CRUD operations, Schema validation |
-| `analyzerAgent` | Steuerberechnung, Absetzbeträge |
 | `formGenerator` | PDF-Generierung, Feldmapping |
 | `ocrService` | Text-Extraktion, Confidence-Werte |
 
@@ -288,24 +306,28 @@ Gesamt Vulnerabilities: 37
 
 ## ✅ Fazit
 
-**Das Projekt ist zu ca. 85% fertig für Phase 1+2.**
+**Das Projekt ist zu ca. 90% fertig für Phase 1+2.**
 
 ### Was funktioniert:
 - ✅ Komplette Backend-Architektur
 - ✅ Alle UI-Seiten implementiert
-- ✅ LLM-Integration (Ollama, LM Studio, Claude)
+- ✅ LLM-Integration (Ollama, LM Studio, Claude, OpenAI, Gemini, OpenAI-Compatible)
 - ✅ OCR und Dokumentenverarbeitung
 - ✅ Steuerformular-Generierung
 - ✅ TypeScript kompiliert fehlerfrei
 - ✅ ESLint konfiguriert
 - ✅ Vollständige Dokumentation
+- ✅ Unit Tests für AnalyzerAgent (21 Tests)
+- ✅ Vitest konfiguriert
 
 ### Was fehlt:
-- ⚠️ Tests (Unit, Integration, E2E)
+- ⚠️ Weitere Unit Tests (llmService, dbService, formGenerator)
+- ⚠️ Integration Tests
+- ⚠️ E2E Tests mit Playwright
 - ⚠️ PDF OCR Funktion
 
 ### Empfehlung:
-Das Projekt ist bereit für manuelle Tests mit einem lokal laufenden Ollama. Vor dem Production-Release sollten Tests und ESLint hinzugefügt werden.
+Das Projekt ist bereit für manuelle Tests mit einem lokal laufenden Ollama. Grundlegende Unit Tests sind vorhanden. Vor dem Production-Release sollten weitere Tests hinzugefügt werden.
 
 ---
 
