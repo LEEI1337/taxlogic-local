@@ -243,7 +243,7 @@ class OCRService {
     const dates: ExtractedDate[] = [];
 
     // European date formats: DD.MM.YYYY, DD/MM/YYYY, DD-MM-YYYY
-    const euDatePattern = /(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{2,4})/g;
+    const euDatePattern = /(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})/g;
 
     // ISO format: YYYY-MM-DD
     const isoDatePattern = /(\d{4})-(\d{2})-(\d{2})/g;

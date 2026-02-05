@@ -261,7 +261,7 @@ export class DocumentInspectorAgent {
     }
 
     // Check for dates
-    const hasDate = /\d{1,2}[.\/-]\d{1,2}[.\/-]\d{2,4}/.test(ocrResult.text);
+    const hasDate = /\d{1,2}[./-]\d{1,2}[./-]\d{2,4}/.test(ocrResult.text);
     if (!hasDate) {
       issues.push('Kein Datum erkannt');
     }
