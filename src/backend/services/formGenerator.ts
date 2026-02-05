@@ -9,9 +9,10 @@
  * Uses PDFKit to create fillable PDF forms matching official Finanzamt layouts.
  */
 
-import PDFDocument from 'pdfkit';
 import * as fs from 'fs';
 import * as path from 'path';
+
+import PDFDocument from 'pdfkit';
 
 // ========================================
 // Type Definitions

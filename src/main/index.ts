@@ -5,8 +5,10 @@
  * It handles window management, IPC communication, and app lifecycle.
  */
 
-import { app, BrowserWindow, Menu, shell, dialog } from 'electron';
 import path from 'path';
+
+import { app, BrowserWindow, Menu, shell, dialog } from 'electron';
+
 import { registerIpcHandlers } from './ipcHandlers';
 import { createApplicationMenu } from './menu';
 import { logger } from './utils/logger';

@@ -6,7 +6,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAppStore } from '../stores/appStore';
+
+import { useAppStore, UserProfile } from '../stores/appStore';
 
 type OnboardingStep = 'welcome' | 'llm-check' | 'profile' | 'complete';
 
@@ -40,7 +41,7 @@ function OnboardingPage(): React.ReactElement {
       case 'profile':
         setUserProfile({
           profession,
-          employmentStatus: employmentStatus as any
+          employmentStatus: employmentStatus as UserProfile['employmentStatus']
         });
         setCurrentStep('complete');
         break;

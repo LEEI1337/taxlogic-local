@@ -6,6 +6,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+
 import { useAppStore } from '../stores/appStore';
 
 interface UploadedDocument {
@@ -29,6 +30,52 @@ function DocumentUploadPage(): React.ReactElement {
   const [documents, setDocuments] = useState<UploadedDocument[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  const processFiles = useCallback(async (files: Array<File | { name: string; path: string }>): Promise<void> => {
+    const newDocs: UploadedDocument[] = files.map((file, index) => ({
+      id: `doc-${Date.now()}-${index}`,
+      name: file.name,
+      path: 'path' in file ? file.path : URL.createObjectURL(file as File),
+      size: 'size' in file ? (file as File).size : 0,
+      status: 'uploading' as const
+    }));
+
+    setDocuments((prev) => [...prev, ...newDocs]);
+
+    // Simulate processing each document
+    for (const doc of newDocs) {
+      setDocuments((prev) =>
+        prev.map((d) =>
+          d.id === doc.id
+            ? { ...d, status: 'processing' as const }
+            : d
+        )
+      );
+
+      // Simulate OCR & classification
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      // Update with results
+      setDocuments((prev) =>
+        prev.map((d) =>
+          d.id === doc.id
+            ? {
+                ...d,
+                status: 'done' as const,
+                category: 'Werbungskosten',
+                extractedData: {
+                  date: '2024-03-15',
+                  amount: 42.50,
+                  vendor: 'Example Vendor'
+                }
+              }
+            : d
+        )
+      );
+    }
+
+    addNotification('success', `${files.length} Dokument(e) erfolgreich verarbeitet`);
+  }, [addNotification]);
 
   const handleDragEnter = (e: React.DragEvent): void => {
     e.preventDefault();
@@ -54,7 +101,7 @@ function DocumentUploadPage(): React.ReactElement {
 
     const files = Array.from(e.dataTransfer.files);
     await processFiles(files);
-  }, []);
+  }, [processFiles]);
 
   const handleFileSelect = async (): Promise<void> => {
     if (window.electronAPI) {
@@ -64,59 +111,14 @@ function DocumentUploadPage(): React.ReactElement {
 
       if (filePaths) {
         // Convert paths to pseudo-File objects for processing
-        const pseudoFiles = filePaths.map((path) => ({
+        const pseudoFiles: Array<{ name: string; path: string }> = filePaths.map((path) => ({
           name: path.split(/[/\\]/).pop() || 'unknown',
           path
         }));
 
-        await processFiles(pseudoFiles as any);
+        await processFiles(pseudoFiles);
       }
     }
-  };
-
-  const processFiles = async (files: Array<File | { name: string; path: string }>): Promise<void> => {
-    const newDocs: UploadedDocument[] = files.map((file, index) => ({
-      id: `doc-${Date.now()}-${index}`,
-      name: file.name,
-      path: 'path' in file ? file.path : URL.createObjectURL(file as File),
-      size: 'size' in file ? (file as File).size : 0,
-      status: 'uploading' as const
-    }));
-
-    setDocuments((prev) => [...prev, ...newDocs]);
-
-    // Simulate processing each document
-    for (const doc of newDocs) {
-      setDocuments((prev) =>
-        prev.map((d) => (d.id === doc.id ? { ...d, status: 'processing' as const } : d))
-      );
-
-      // Simulate OCR processing delay
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      // Simulate extracted data
-      const categories = ['Reisekosten', 'Home Office', 'Fortbildung', 'Medizin', 'Sonstige'];
-      const randomCategory = categories[Math.floor(Math.random() * categories.length)];
-
-      setDocuments((prev) =>
-        prev.map((d) =>
-          d.id === doc.id
-            ? {
-                ...d,
-                status: 'done' as const,
-                category: randomCategory,
-                extractedData: {
-                  date: '2024-03-15',
-                  amount: Math.floor(Math.random() * 500) + 20,
-                  vendor: 'Beispiel GmbH'
-                }
-              }
-            : d
-        )
-      );
-    }
-
-    addNotification('success', `${files.length} Dokument(e) erfolgreich verarbeitet`);
   };
 
   const removeDocument = (id: string): void => {

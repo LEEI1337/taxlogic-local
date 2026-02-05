@@ -9,10 +9,11 @@
  */
 
 import { llmService } from '../services/llmService';
-import { TaxCalculationResult, TaxProfile } from './analyzerAgent';
-import { DocumentAnalysis } from './documentInspectorAgent';
 import { guideGenerator, GuideGenerationInput, PersonalizedGuide } from '../services/guideGenerator';
 import { L1FormData } from '../services/formGenerator';
+
+import { TaxCalculationResult, TaxProfile } from './analyzerAgent';
+import { DocumentAnalysis } from './documentInspectorAgent';
 
 // ========================================
 // Type Definitions

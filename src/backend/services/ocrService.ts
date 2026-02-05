@@ -8,8 +8,9 @@
  * - Structured data extraction (amounts, dates, vendors)
  */
 
-import { Worker, createWorker, RecognizeResult } from 'tesseract.js';
 import * as fs from 'fs';
+
+import { Worker, createWorker, RecognizeResult } from 'tesseract.js';
 
 // ========================================
 // Type Definitions
