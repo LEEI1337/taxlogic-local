@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import OCRService, { ocrService, OCRResult } from '../../src/backend/services/ocrService';
+import OCRService, { OCRResult } from '../../src/backend/services/ocrService';
 
 // We don't test the actual OCR processing since it requires Tesseract
 // Instead, we test the data extraction functions
