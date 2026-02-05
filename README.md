@@ -65,7 +65,7 @@
 - **100% Local Execution** - All data stays on your computer
 - **No Cloud Dependencies** - Works completely offline
 - **No Tracking** - Zero telemetry, zero analytics
-- **BYOK Optional** - Bring Your Own Key for Claude API if desired
+- **BYOK Optional** - Bring Your Own Key for cloud providers if desired
 
 ### 🤖 Multi-Agent AI System
 - **LangGraph Workflow** - Stateful, graph-based conversation flow
@@ -74,6 +74,14 @@
   - 📄 **Document Inspector** - OCR + classification
   - 📊 **Analyzer Agent** - Tax calculations & optimization
   - 📝 **Report Writer** - Guide generation
+
+### 🔗 Multiple LLM Providers
+- **Ollama** - Local LLM (Primary, recommended)
+- **LM Studio** - Local LLM (Secondary)
+- **Claude API** - Anthropic Claude (BYOK)
+- **OpenAI/ChatGPT** - GPT-4o, GPT-4 (BYOK)
+- **Google Gemini** - Gemini 1.5 Flash/Pro (BYOK)
+- **OpenAI-Compatible** - Any OpenAI-compatible API endpoint
 
 ### 📄 Document Processing
 - **Automatic OCR** - Tesseract + Vision LLM support
@@ -240,6 +248,13 @@ Get a personalized step-by-step guide for:
 │   │   11434      │   │   1234       │   │  (Optional)  │                    │
 │   └──────────────┘   └──────────────┘   └──────────────┘                    │
 │                                                                              │
+│   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐                    │
+│   │   OpenAI     │   │   Gemini     │   │  OpenAI-     │                    │
+│   │  (ChatGPT)   │   │  (Google)    │   │ Compatible   │                    │
+│   │   (BYOK)     │   │   (BYOK)     │   │  (Custom)    │                    │
+│   │   Cloud      │   │   Cloud      │   │  Any URL     │                    │
+│   └──────────────┘   └──────────────┘   └──────────────┘                    │
+│                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -331,11 +346,16 @@ taxlogic-local/
 ```bash
 # .env.local
 
-# LLM Configuration
+# LLM Configuration (Local Providers)
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=mistral:latest
 LM_STUDIO_URL=http://localhost:1234
-ANTHROPIC_API_KEY=sk-ant-...  # Optional BYOK
+
+# Cloud Providers (Optional BYOK)
+ANTHROPIC_API_KEY=sk-ant-...      # Claude API
+OPENAI_API_KEY=sk-...             # OpenAI / ChatGPT
+GEMINI_API_KEY=...                # Google Gemini
+OPENAI_COMPATIBLE_URL=...         # Custom OpenAI-compatible endpoint
 
 # Database
 DATABASE_PATH=./db/taxlogic.db
