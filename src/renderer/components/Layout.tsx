@@ -2,7 +2,7 @@
  * TaxLogic.local - Main Layout Component
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { useAppStore } from '../stores/appStore';
@@ -14,7 +14,40 @@ import NotificationContainer from './NotificationContainer';
 function Layout(): React.ReactElement {
   const location = useLocation();
   const navigate = useNavigate();
-  const { llmStatus, isCheckingLLM, notifications, removeNotification } = useAppStore();
+  const { llmStatus, isCheckingLLM, notifications, removeNotification, checkLLMStatus, addNotification } = useAppStore();
+
+  // Listen for menu events from main process
+  useEffect(() => {
+    if (!window.electronAPI) return;
+
+    const cleanups: Array<() => void> = [];
+
+    const menuHandlers: Record<string, () => void> = {
+      'menu:openSettings': () => navigate('/settings'),
+      'menu:startInterview': () => navigate('/interview'),
+      'menu:manageDocuments': () => navigate('/documents'),
+      'menu:runAnalysis': () => navigate('/review'),
+      'menu:exportForms': () => navigate('/export'),
+      'menu:generateForms': () => navigate('/export'),
+      'menu:showGuide': () => navigate('/export'),
+      'menu:checkLLMStatus': () => checkLLMStatus(),
+      'menu:newFiling': () => {
+        navigate('/interview');
+        addNotification('info', 'Neue Steuererklärung gestartet');
+      },
+      'menu:save': () => addNotification('success', 'Gespeichert'),
+      'menu:importDocuments': () => navigate('/documents'),
+      'menu:showAbout': () => navigate('/settings')
+    };
+
+    for (const [channel, handler] of Object.entries(menuHandlers)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cleanup = window.electronAPI.on(channel as any, handler);
+      cleanups.push(cleanup);
+    }
+
+    return () => cleanups.forEach((c) => c());
+  }, [navigate, checkLLMStatus, addNotification]);
 
   // Get current page title
   const getPageTitle = (): string => {

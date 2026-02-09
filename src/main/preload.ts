@@ -104,7 +104,23 @@ const ALLOWED_ON_CHANNELS = [
 
   // Interview updates
   'interview:questionReceived',
-  'interview:completed'
+  'interview:completed',
+
+  // Menu events (from application menu)
+  'menu:newFiling',
+  'menu:openFiling',
+  'menu:save',
+  'menu:saveAs',
+  'menu:importDocuments',
+  'menu:exportForms',
+  'menu:openSettings',
+  'menu:startInterview',
+  'menu:manageDocuments',
+  'menu:runAnalysis',
+  'menu:generateForms',
+  'menu:showGuide',
+  'menu:checkLLMStatus',
+  'menu:showAbout'
 ] as const;
 
 type InvokeChannel = typeof ALLOWED_INVOKE_CHANNELS[number];
