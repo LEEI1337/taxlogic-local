@@ -28,6 +28,7 @@ const ALLOWED_INVOKE_CHANNELS = [
   'llm:checkStatus',
   'llm:getAvailableModels',
   'llm:setModel',
+  'llm:setConfig',
   'llm:query',
   'llm:queryStream',
 

@@ -21,6 +21,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Voice Input für Interviews
 - Mobile Companion App
 
+## [1.0.0-alpha.3] - 2026-02-09
+
+### Hinzugefügt / Added
+- **Ollama Netzwerk-Support** - Ollama-Server URL in den Einstellungen konfigurierbar (lokal oder Netzwerk)
+- **dotenv Integration** - `.env.local` wird beim Start geladen für Konfiguration ohne Code-Änderungen
+- **LLM Config Sync** - Settings-Änderungen werden live an den LLM-Service propagiert (kein App-Neustart nötig)
+
+### Geändert / Changed
+- Default-Modell von `mistral:latest` auf `llama3.1:8b` geändert
+- SettingsPage zeigt Ollama-URL Feld mit Netzwerk-Hinweis
+
+---
+
 ## [1.0.0-alpha.2] - 2026-02-09
 
 ### Behoben / Fixed
@@ -37,16 +50,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Sicherheit
 - **API-Keys** - Aus localStorage (unverschlüsselt) in Electron safeStorage (verschlüsselt) verschoben
+- **SettingsPage** - API-Key Felder nutzen jetzt IPC + React State statt Zustand/localStorage
 - **Steuer-ID Validierung** - Prüfziffern-Algorithmus für österreichische Steuernummern implementiert
 
 #### Verbesserungen
 - **PDF-OCR** - Text-basierte PDFs können jetzt verarbeitet werden (pdf-parse)
 - **Interview-Skip-Logik** - Von hardcodierten IDs zu datengetriebenem Skip-Rules-System refactored
 - **Hardcodierte Durchschnittswerte** - Irreführende averageDeductions/percentile-Werte entfernt
+- **TypeScript** - pdf-parse Type-Deklaration hinzugefügt, alle TS-Fehler behoben
 
 ### Hinzugefügt / Added
 - GitHub Actions CI/CD Pipeline (lint, type-check, test)
-- Neue Unit Tests für dbService, formGenerator, validation
+- **163 Unit-Tests** (vorher 21): E2E Steuerberechnung (19), Validation (23), DB-Service (24)
+- 17 realistische Steuerszenarien mit handgerechneten Erwartungswerten
+- Platzhalter App-Icons für Build
 
 ---
 

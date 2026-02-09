@@ -86,18 +86,33 @@ function SettingsPage(): React.ReactElement {
             </select>
           </div>
 
-          {/* Ollama Model */}
+          {/* Ollama Configuration */}
           {settings.preferredLLM === 'ollama' && (
-            <div>
-              <label className="label">Ollama Modell</label>
-              <input
-                type="text"
-                value={settings.ollamaModel}
-                onChange={(e) => updateSettings({ ollamaModel: e.target.value })}
-                className="input"
-                placeholder="z.B. mistral:latest"
-              />
-            </div>
+            <>
+              <div>
+                <label className="label">Ollama Server URL</label>
+                <input
+                  type="text"
+                  value={settings.ollamaUrl}
+                  onChange={(e) => updateSettings({ ollamaUrl: e.target.value })}
+                  className="input"
+                  placeholder="http://localhost:11434"
+                />
+                <p className="text-xs text-neutral-500 mt-1">
+                  Lokal oder im Netzwerk (z.B. http://10.40.10.90:11434)
+                </p>
+              </div>
+              <div>
+                <label className="label">Ollama Modell</label>
+                <input
+                  type="text"
+                  value={settings.ollamaModel}
+                  onChange={(e) => updateSettings({ ollamaModel: e.target.value })}
+                  className="input"
+                  placeholder="z.B. llama3.1:8b"
+                />
+              </div>
+            </>
           )}
 
           {/* Claude API Key */}

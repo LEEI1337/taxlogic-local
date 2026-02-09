@@ -6,6 +6,11 @@
  */
 
 import path from 'path';
+import { config as dotenvConfig } from 'dotenv';
+
+// Load .env.local (then .env as fallback) before anything else
+dotenvConfig({ path: path.join(__dirname, '..', '..', '.env.local') });
+dotenvConfig({ path: path.join(__dirname, '..', '..', '.env') });
 
 import { app, BrowserWindow, Menu, shell, dialog } from 'electron';
 

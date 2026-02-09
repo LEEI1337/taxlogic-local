@@ -29,6 +29,7 @@ export interface AppSettings {
   theme: 'dark' | 'light' | 'system';
   language: 'de' | 'en';
   preferredLLM: 'ollama' | 'lmStudio' | 'claude' | 'openai' | 'gemini' | 'openaiCompatible';
+  ollamaUrl: string;
   ollamaModel: string;
   // API keys are NOT stored in localStorage (security risk)
   // They are managed via IPC settings:get/settings:set in the main process
@@ -95,7 +96,8 @@ const defaultSettings: AppSettings = {
   theme: 'dark',
   language: 'de',
   preferredLLM: 'ollama',
-  ollamaModel: 'mistral:latest'
+  ollamaUrl: 'http://localhost:11434',
+  ollamaModel: 'llama3.1:8b'
 };
 
 const defaultUserProfile: UserProfile = {
@@ -143,10 +145,21 @@ export const useAppStore = create<AppState>()(
 
       // Settings
       settings: defaultSettings,
-      updateSettings: (settings) =>
+      updateSettings: (newSettings) => {
         set((state) => ({
-          settings: { ...state.settings, ...settings }
-        })),
+          settings: { ...state.settings, ...newSettings }
+        }));
+        // Propagate LLM-relevant settings to main process
+        if (window.electronAPI && (newSettings.ollamaUrl || newSettings.ollamaModel || newSettings.preferredLLM)) {
+          const state = get();
+          const merged = { ...state.settings, ...newSettings };
+          window.electronAPI.invoke('llm:setConfig', {
+            provider: merged.preferredLLM,
+            ollamaBaseUrl: merged.ollamaUrl,
+            ollamaModel: merged.ollamaModel
+          }).catch((err: unknown) => console.error('Failed to sync LLM config:', err));
+        }
+      },
       resetSettings: () => set({ settings: defaultSettings }),
 
       // Current tax year

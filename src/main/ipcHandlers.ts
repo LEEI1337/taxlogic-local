@@ -153,6 +153,11 @@ export function registerIpcHandlers(): void {
     llmService.setModel(modelName);
   });
 
+  ipcMain.handle('llm:setConfig', async (_event, config: Record<string, unknown>) => {
+    logger.info('Updating LLM config:', Object.keys(config));
+    llmService.setConfig(config);
+  });
+
   ipcMain.handle('llm:query', async (_event, prompt: string, conversationHistory?: Array<{ role: string; content: string }>) => {
     logger.debug('LLM query received');
     try {

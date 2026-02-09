@@ -46,8 +46,8 @@ export interface LLMResponse {
 
 const DEFAULT_CONFIG: LLMConfig = {
   provider: 'ollama',
-  ollamaBaseUrl: 'http://localhost:11434',
-  ollamaModel: 'mistral:latest',
+  ollamaBaseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
+  ollamaModel: process.env.OLLAMA_MODEL || 'mistral:latest',
   lmStudioUrl: 'http://localhost:1234',
   lmStudioModel: 'local-model',
   anthropicModel: 'claude-3-5-sonnet-20241022',
