@@ -15,7 +15,10 @@ export const userProfileSchema = z.object({
   email: z.string().email().optional().or(z.literal('')),
   firstName: z.string().min(1, 'Vorname erforderlich').max(100),
   lastName: z.string().min(1, 'Nachname erforderlich').max(100),
-  taxId: z.string().regex(/^\d{9}$/, 'Steuer-ID muss 9 Ziffern enthalten').optional().or(z.literal('')),
+  taxId: z.string().refine(
+    (val) => val === '' || isValidAustrianTaxId(val),
+    'Ungültige österreichische Steuernummer (9 Ziffern mit gültiger Prüfziffer)'
+  ).optional().or(z.literal('')),
   address: z.string().max(500).optional(),
   city: z.string().max(100).optional(),
   postalCode: z.string().regex(/^\d{4}$/, 'PLZ muss 4 Ziffern enthalten').optional().or(z.literal('')),
@@ -231,9 +234,36 @@ export function isValidAustrianPostalCode(postalCode: string): boolean {
 
 /**
  * Validates Austrian tax ID (Steuernummer)
+ * Format: 2-digit Finanzamt + 7-digit number (with check digit)
+ * The check digit (last digit) is calculated using a weighted sum modulo 11
  */
 export function isValidAustrianTaxId(taxId: string): boolean {
-  return /^\d{9}$/.test(taxId);
+  if (!/^\d{9}$/.test(taxId)) {
+    return false;
+  }
+
+  // Valid Finanzamt codes are between 01 and 99
+  const finanzamtCode = parseInt(taxId.substring(0, 2), 10);
+  if (finanzamtCode < 1 || finanzamtCode > 99) {
+    return false;
+  }
+
+  // Check digit validation (weighted sum mod 11)
+  // Weights for positions 1-8
+  const weights = [1, 2, 1, 2, 1, 2, 1, 2];
+  let sum = 0;
+
+  for (let i = 0; i < 8; i++) {
+    let product = parseInt(taxId[i], 10) * weights[i];
+    // If product >= 10, add digits (e.g., 14 -> 1+4 = 5)
+    if (product >= 10) {
+      product = Math.floor(product / 10) + (product % 10);
+    }
+    sum += product;
+  }
+
+  const checkDigit = (10 - (sum % 10)) % 10;
+  return parseInt(taxId[8], 10) === checkDigit;
 }
 
 /**

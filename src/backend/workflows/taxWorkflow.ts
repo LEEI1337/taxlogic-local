@@ -479,12 +479,31 @@ async function analysisNode(state: TaxFilingState): Promise<Partial<TaxFilingSta
 
   const totalIncome = Number(responses.annual_income) || 0;
 
-  // Estimate refund (simplified calculation)
+  // Estimate refund using progressive tax brackets (Austrian 2024 rates)
   // Werbungskostenpauschale is €132, only count if deductions exceed this
   const effectiveDeductions = Math.max(totalDeductions - 132, 0);
 
-  // Assume average tax rate of 30% for simplicity
-  const estimatedRefund = effectiveDeductions * 0.3;
+  // Calculate marginal tax rate based on income to estimate refund
+  const taxBrackets = [
+    { min: 0, max: 11693, rate: 0 },
+    { min: 11693, max: 19134, rate: 0.2 },
+    { min: 19134, max: 32075, rate: 0.3 },
+    { min: 32075, max: 62080, rate: 0.4 },
+    { min: 62080, max: 93120, rate: 0.48 },
+    { min: 93120, max: 1000000, rate: 0.5 },
+    { min: 1000000, max: Infinity, rate: 0.55 }
+  ];
+
+  // Find the marginal tax rate for the user's income
+  let marginalRate = 0;
+  for (const bracket of taxBrackets) {
+    if (totalIncome >= bracket.min) {
+      marginalRate = bracket.rate;
+    }
+  }
+
+  // Refund = deductions * marginal tax rate (more accurate than flat 30%)
+  const estimatedRefund = effectiveDeductions * marginalRate;
 
   const calculation: CalculationResult = {
     total_income: totalIncome,
@@ -494,7 +513,7 @@ async function analysisNode(state: TaxFilingState): Promise<Partial<TaxFilingSta
     details: {
       werbungskostenpauschale: 132,
       effective_deductions: effectiveDeductions,
-      assumed_tax_rate: 0.3
+      marginal_tax_rate: marginalRate
     }
   };
 
@@ -514,16 +533,22 @@ async function formGenerationNode(state: TaxFilingState): Promise<Partial<TaxFil
   const responses = state.interview_responses;
   const calculation = state.calculation!;
 
-  // Build L1 form data
+  // Build L1 form data from user profile
+  const profile = state.user_profile || {};
+  const fullName = (profile as Record<string, unknown>).full_name as string || '';
+  const nameParts = fullName.split(' ');
+  const vorname = (profile as Record<string, unknown>).first_name as string || nameParts[0] || '';
+  const familienname = (profile as Record<string, unknown>).last_name as string || nameParts.slice(1).join(' ') || '';
+
   const l1Data: L1FormData = {
-    sozialversicherungsnummer: (state.user_profile.profession || '') + '_SVNR', // Placeholder
-    familienname: 'Mustermann', // Would come from profile
-    vorname: 'Max',
-    geburtsdatum: '01.01.1990',
-    strasse: 'Musterstraße',
-    hausnummer: '1',
-    plz: '1010',
-    ort: 'Wien',
+    sozialversicherungsnummer: ((profile as Record<string, unknown>).svnr as string) || '',
+    familienname: familienname || 'BITTE AUSFÜLLEN',
+    vorname: vorname || 'BITTE AUSFÜLLEN',
+    geburtsdatum: ((profile as Record<string, unknown>).birth_date as string) || 'BITTE AUSFÜLLEN',
+    strasse: ((profile as Record<string, unknown>).street as string) || 'BITTE AUSFÜLLEN',
+    hausnummer: ((profile as Record<string, unknown>).house_number as string) || '',
+    plz: ((profile as Record<string, unknown>).postal_code as string) || '',
+    ort: ((profile as Record<string, unknown>).city as string) || '',
     veranlagungsjahr: state.tax_year,
     bruttoeinkunfte: calculation.total_income,
     pendlerpauschale: calculation.breakdown.pendlerpauschale || undefined,
@@ -578,19 +603,23 @@ async function guideGenerationNode(state: TaxFilingState): Promise<Partial<TaxFi
   const responses = state.interview_responses;
   const calculation = state.calculation!;
 
-  // Build guide input
+  // Build guide input from user profile
+  const guideProfile = state.user_profile || {};
+  const guideFullName = (guideProfile as Record<string, unknown>).full_name as string || '';
+  const guideNameParts = guideFullName.split(' ');
+
   const guideInput: GuideGenerationInput = {
     userId: state.user_id,
     taxYear: state.tax_year,
     formData: {
-      sozialversicherungsnummer: 'XXXX XXXXXX',
-      familienname: 'Mustermann',
-      vorname: 'Max',
-      geburtsdatum: '01.01.1990',
-      strasse: 'Musterstraße',
-      hausnummer: '1',
-      plz: '1010',
-      ort: 'Wien',
+      sozialversicherungsnummer: ((guideProfile as Record<string, unknown>).svnr as string) || 'XXXX XXXXXX',
+      familienname: (guideProfile as Record<string, unknown>).last_name as string || guideNameParts.slice(1).join(' ') || 'Name',
+      vorname: (guideProfile as Record<string, unknown>).first_name as string || guideNameParts[0] || 'Vorname',
+      geburtsdatum: (guideProfile as Record<string, unknown>).birth_date as string || '',
+      strasse: (guideProfile as Record<string, unknown>).street as string || '',
+      hausnummer: (guideProfile as Record<string, unknown>).house_number as string || '',
+      plz: (guideProfile as Record<string, unknown>).postal_code as string || '',
+      ort: (guideProfile as Record<string, unknown>).city as string || '',
       veranlagungsjahr: state.tax_year,
       bruttoeinkunfte: calculation.total_income,
       pendlerpauschale: calculation.breakdown.pendlerpauschale || undefined,

@@ -352,8 +352,8 @@ export class ReportWriterAgent {
       categories,
       comparison: {
         yourDeductions: total,
-        averageDeductions: 2500, // Assumed average
-        percentile: total > 2500 ? 60 : 40
+        averageDeductions: 0, // No reliable average available - omit from UI if 0
+        percentile: 0 // No reliable percentile available - omit from UI if 0
       },
       explanation: `Ihre gesamten Absetzbeträge von €${total.toLocaleString('de-AT')} reduzieren Ihr zu versteuerndes Einkommen.`
     };

@@ -595,39 +595,29 @@ export class InterviewerAgent {
       }
     }
 
-    // Specific skip logic
-    switch (question.id) {
-      case 'commute_distance':
-      case 'commute_transport':
-      case 'commute_public_feasible':
-        return responses.commute_exists === false;
+    // Fallback skip rules for questions without explicit followUp definitions
+    // These act as safety nets if followUp rules are not defined on parent questions
+    const skipRules: Record<string, { field: string; skipWhen: unknown }> = {
+      commute_distance: { field: 'commute_exists', skipWhen: false },
+      commute_transport: { field: 'commute_exists', skipWhen: false },
+      commute_public_feasible: { field: 'commute_exists', skipWhen: false },
+      work_equipment_details: { field: 'work_equipment', skipWhen: false },
+      education_details: { field: 'education_expenses', skipWhen: false },
+      church_tax_amount: { field: 'church_tax', skipWhen: false },
+      donations_amount: { field: 'donations', skipWhen: false },
+      medical_amount: { field: 'medical_expenses', skipWhen: false },
+      disability_degree: { field: 'disability', skipWhen: false },
+      children_count: { field: 'has_children', skipWhen: false },
+      childcare_costs: { field: 'has_children', skipWhen: false },
+      childcare_amount: { field: 'has_children', skipWhen: false },
+    };
 
-      case 'work_equipment_details':
-        return responses.work_equipment === false;
-
-      case 'education_details':
-        return responses.education_expenses === false;
-
-      case 'church_tax_amount':
-        return responses.church_tax === false;
-
-      case 'donations_amount':
-        return responses.donations === false;
-
-      case 'medical_amount':
-        return responses.medical_expenses === false;
-
-      case 'disability_degree':
-        return responses.disability === false;
-
-      case 'children_count':
-      case 'childcare_costs':
-      case 'childcare_amount':
-        return responses.has_children === false;
-
-      default:
-        return false;
+    const rule = skipRules[question.id];
+    if (rule) {
+      return responses[rule.field] === rule.skipWhen;
     }
+
+    return false;
   }
 
   /**

@@ -2,9 +2,13 @@
  * TaxLogic.local - Settings Page
  */
 
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 import { useAppStore, AppSettings } from '../stores/appStore';
+
+// API key names managed via IPC (safeStorage)
+const API_KEY_NAMES = ['anthropicApiKey', 'openaiApiKey', 'geminiApiKey', 'openaiCompatibleApiKey'] as const;
+type ApiKeyName = typeof API_KEY_NAMES[number];
 
 function SettingsPage(): React.ReactElement {
   const {
@@ -14,6 +18,41 @@ function SettingsPage(): React.ReactElement {
     checkLLMStatus,
     isCheckingLLM
   } = useAppStore();
+
+  // API keys are stored securely via Electron safeStorage, not in Zustand/localStorage
+  const [apiKeys, setApiKeys] = useState<Record<ApiKeyName, string>>({
+    anthropicApiKey: '',
+    openaiApiKey: '',
+    geminiApiKey: '',
+    openaiCompatibleApiKey: ''
+  });
+
+  // Load API keys on mount
+  useEffect(() => {
+    const loadKeys = async () => {
+      if (!window.electronAPI) return;
+      try {
+        const allKeys = await window.electronAPI.invoke('apiKeys:getAll');
+        if (allKeys && typeof allKeys === 'object') {
+          setApiKeys((prev) => ({ ...prev, ...allKeys }));
+        }
+      } catch (err) {
+        console.error('Failed to load API keys:', err);
+      }
+    };
+    loadKeys();
+  }, []);
+
+  const updateApiKey = useCallback(async (keyName: ApiKeyName, value: string) => {
+    setApiKeys((prev) => ({ ...prev, [keyName]: value }));
+    if (window.electronAPI) {
+      try {
+        await window.electronAPI.invoke('apiKeys:set', keyName, value);
+      } catch (err) {
+        console.error(`Failed to save ${keyName}:`, err);
+      }
+    }
+  }, []);
 
   return (
     <div className="max-w-2xl">
@@ -67,13 +106,13 @@ function SettingsPage(): React.ReactElement {
               <label className="label">Anthropic API Key</label>
               <input
                 type="password"
-                value={settings.anthropicApiKey || ''}
-                onChange={(e) => updateSettings({ anthropicApiKey: e.target.value })}
+                value={apiKeys.anthropicApiKey}
+                onChange={(e) => updateApiKey('anthropicApiKey', e.target.value)}
                 className="input"
                 placeholder="sk-ant-..."
               />
               <p className="text-xs text-neutral-500 mt-1">
-                Ihr API-Schlüssel wird nur lokal gespeichert.
+                Ihr API-Schlüssel wird verschlüsselt auf Ihrem Computer gespeichert.
               </p>
             </div>
           )}
@@ -85,13 +124,13 @@ function SettingsPage(): React.ReactElement {
                 <label className="label">OpenAI API Key</label>
                 <input
                   type="password"
-                  value={settings.openaiApiKey || ''}
-                  onChange={(e) => updateSettings({ openaiApiKey: e.target.value })}
+                  value={apiKeys.openaiApiKey}
+                  onChange={(e) => updateApiKey('openaiApiKey', e.target.value)}
                   className="input"
                   placeholder="sk-..."
                 />
                 <p className="text-xs text-neutral-500 mt-1">
-                  Ihr API-Schlüssel wird nur lokal gespeichert.
+                  Ihr API-Schlüssel wird verschlüsselt auf Ihrem Computer gespeichert.
                 </p>
               </div>
               <div>
@@ -118,8 +157,8 @@ function SettingsPage(): React.ReactElement {
                 <label className="label">Google Gemini API Key</label>
                 <input
                   type="password"
-                  value={settings.geminiApiKey || ''}
-                  onChange={(e) => updateSettings({ geminiApiKey: e.target.value })}
+                  value={apiKeys.geminiApiKey}
+                  onChange={(e) => updateApiKey('geminiApiKey', e.target.value)}
                   className="input"
                   placeholder="AIza..."
                 />
@@ -172,8 +211,8 @@ function SettingsPage(): React.ReactElement {
                 <label className="label">API Key (optional)</label>
                 <input
                   type="password"
-                  value={settings.openaiCompatibleApiKey || ''}
-                  onChange={(e) => updateSettings({ openaiCompatibleApiKey: e.target.value })}
+                  value={apiKeys.openaiCompatibleApiKey}
+                  onChange={(e) => updateApiKey('openaiCompatibleApiKey', e.target.value)}
                   className="input"
                   placeholder="Leer lassen wenn nicht benötigt"
                 />

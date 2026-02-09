@@ -21,6 +21,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Voice Input für Interviews
 - Mobile Companion App
 
+## [1.0.0-alpha.2] - 2026-02-09
+
+### Behoben / Fixed
+
+#### Kritische Steuerberechnungsfehler
+- **Arbeitnehmerabsetzbetrag (€500) fehlte** - War fälschlich als "in Steuerstufen integriert" kommentiert, jetzt korrekt als Absetzposten implementiert
+- **Medizinkosten-Selbstbehalt** - War hardcodiert auf 6%, jetzt dynamisch basierend auf Familienstatus (Behinderung: 0%, Alleinerzieher mit 3+ Kindern: 4%, etc.)
+- **Steuerrückerstattung** - War pauschal 30%, jetzt mit progressiven österreichischen Steuersätzen berechnet
+
+#### Formulare & Daten
+- **Platzhalterdaten in Formularen** - "Max Mustermann" durch echte Benutzerdaten aus dem Profil ersetzt (L1, L1ab, L1k, Guide)
+- **Kinderbetreuungskosten** - 50%-Regel bei geteilter Obsorge implementiert
+- **Familienbonus Plus** - Einkommensgrenze (€15.000) für 18-24-Jährige dokumentiert
+
+#### Sicherheit
+- **API-Keys** - Aus localStorage (unverschlüsselt) in Electron safeStorage (verschlüsselt) verschoben
+- **Steuer-ID Validierung** - Prüfziffern-Algorithmus für österreichische Steuernummern implementiert
+
+#### Verbesserungen
+- **PDF-OCR** - Text-basierte PDFs können jetzt verarbeitet werden (pdf-parse)
+- **Interview-Skip-Logik** - Von hardcodierten IDs zu datengetriebenem Skip-Rules-System refactored
+- **Hardcodierte Durchschnittswerte** - Irreführende averageDeductions/percentile-Werte entfernt
+
+### Hinzugefügt / Added
+- GitHub Actions CI/CD Pipeline (lint, type-check, test)
+- Neue Unit Tests für dbService, formGenerator, validation
+
 ---
 
 ## [1.0.0-alpha] - 2026-02-05
@@ -139,9 +166,9 @@ This is the first public alpha release of TaxLogic.local.
 
 ### Bekannte Einschränkungen / Known Limitations
 
-- PDF OCR noch nicht implementiert (nur Bilder)
-- Qdrant Integration ausstehend
-- Keine Tests vorhanden
+- PDF OCR für gescannte PDFs eingeschränkt (Text-PDFs funktionieren)
+- Qdrant Integration ausstehend (In-Memory Vector Store aktiv)
+- Testabdeckung ~33% des Backends (5 von 15 Dateien)
 - Alpha-Stabilität
 
 ---
@@ -182,4 +209,4 @@ Dies ist die erste Version, daher keine Migration erforderlich.
 
 ---
 
-*Letzte Aktualisierung / Last updated: 2026-02-05*
+*Letzte Aktualisierung / Last updated: 2026-02-09*

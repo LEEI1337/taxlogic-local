@@ -79,6 +79,7 @@ export interface ChildInfo {
   birthDate: string;
   receivingFamilyAllowance: boolean;
   inHousehold: boolean;
+  ownIncome?: number; // Annual income of child (relevant for 18-24 year olds, limit €15,000)
 }
 
 export interface TaxCalculationResult {
@@ -169,7 +170,7 @@ const TAX_BRACKETS_2024 = [
 
 const WERBUNGSKOSTEN_PAUSCHALE = 132;
 const VERKEHRSABSETZBETRAG = 463;
-// ARBEITNEHMERABSETZBETRAG = 0 - Integrated into tax brackets since 2020 (no longer used separately)
+const ARBEITNEHMERABSETZBETRAG = 500; // §33 Abs 5 Z 2 EStG (2024)
 
 const HOME_OFFICE_PER_DAY = 3;
 const HOME_OFFICE_MAX = 300;
@@ -294,16 +295,21 @@ export class AnalyzerAgent {
     // Donations (no cap, but must be to approved organizations)
     const donationsAmount = deductions.donations;
 
-    // Medical expenses (with self-retention calculation)
+    // Medical expenses (with self-retention calculation based on family situation)
     const medicalResult = this.calculateMedicalExpenses(
       deductions.medicalExpenses,
-      profile.income.grossIncome
+      profile.income.grossIncome,
+      profile
     );
 
     // Childcare (max €2300 per child under 10)
-    const childcareMax = profile.family.children.filter(
-      (c) => this.getAge(c.birthDate) < 10
-    ).length * 2300;
+    // Note: In shared custody (not inHousehold), only 50% is deductible per parent
+    let childcareMax = 0;
+    for (const child of profile.family.children) {
+      if (this.getAge(child.birthDate) < 10) {
+        childcareMax += child.inHousehold ? 2300 : 1150; // 50% for shared custody
+      }
+    }
     const childcareAmount = Math.min(deductions.childcareExpenses, childcareMax);
 
     return {
@@ -385,19 +391,52 @@ export class AnalyzerAgent {
    */
   private calculateMedicalExpenses(
     expenses: number,
-    grossIncome: number
+    grossIncome: number,
+    profile?: TaxProfile
   ): { deductible: number; selfRetention: number; details: string } {
-    // Self-retention is a percentage of income (simplified calculation)
-    // Actually depends on family situation, but we use a simplified rate
-    const selfRetentionRate = 0.06; // 6% simplified
-    const selfRetention = grossIncome * selfRetentionRate;
+    // Self-retention rate depends on family situation (§ 34 Abs 4 EStG)
+    // - Default: 6% of income
+    // - With disability: 0% (no self-retention)
+    // - Alleinverdiener/Alleinerzieher with 1 child: 6%
+    // - Alleinverdiener/Alleinerzieher with 2 children: 5%
+    // - Alleinverdiener/Alleinerzieher with 3+ children: 4%
+    // - More than 3 children (no Alleinverdiener): 5%
 
+    let selfRetentionRate = 0.06; // Default 6%
+
+    if (profile) {
+      // Disability: no self-retention
+      if (profile.personalInfo.hasDisability) {
+        selfRetentionRate = 0;
+      } else {
+        const childCount = profile.family.children.length;
+        const isAlleinverdienerOrAlleinerzieher =
+          profile.family.singleEarner || profile.family.singleParent;
+
+        if (isAlleinverdienerOrAlleinerzieher) {
+          if (childCount >= 3) {
+            selfRetentionRate = 0.04; // 4%
+          } else if (childCount === 2) {
+            selfRetentionRate = 0.05; // 5%
+          }
+          // 0 or 1 child stays at 6%
+        } else if (childCount > 3) {
+          selfRetentionRate = 0.05; // 5%
+        }
+      }
+    }
+
+    const selfRetention = grossIncome * selfRetentionRate;
     const deductible = Math.max(0, expenses - selfRetention);
+
+    const rateLabel = selfRetentionRate === 0
+      ? 'Kein Selbstbehalt (Behinderung)'
+      : `Selbstbehalt: €${Math.round(selfRetention)} (${selfRetentionRate * 100}% vom Einkommen)`;
 
     return {
       deductible,
       selfRetention,
-      details: `Selbstbehalt: €${Math.round(selfRetention)} (${selfRetentionRate * 100}% vom Einkommen). Absetzbar: €${Math.round(deductible)}`
+      details: `${rateLabel}. Absetzbar: €${Math.round(deductible)}`
     };
   }
 
@@ -407,7 +446,7 @@ export class AnalyzerAgent {
   private calculateAbsetzbetraege(profile: TaxProfile): Absetzbetraege {
     const absetzbetraege: Absetzbetraege = {
       verkehrsabsetzbetrag: VERKEHRSABSETZBETRAG,
-      arbeitnehmerabsetzbetrag: 0,
+      arbeitnehmerabsetzbetrag: ARBEITNEHMERABSETZBETRAG,
       alleinverdienerabsetzbetrag: 0,
       alleinerzieherabsetzbetrag: 0,
       kinderabsetzbetrag: 0,
@@ -428,12 +467,16 @@ export class AnalyzerAgent {
     }
 
     // Familienbonus Plus
+    // For children 18-24: only if receiving Familienbeihilfe (implies studying/training)
+    // The Familienbonus is limited to the actual tax liability (cannot create negative tax)
     for (const child of profile.family.children) {
       if (child.receivingFamilyAllowance) {
         const age = this.getAge(child.birthDate);
         if (age < 18) {
           absetzbetraege.familienbonus += FAMILIENBONUS_PER_CHILD;
         } else if (age < 24) {
+          // For adult children, Familienbeihilfe is only paid if in education/training
+          // and child's own income doesn't exceed €15,000/year (2024 limit)
           absetzbetraege.familienbonus += FAMILIENBONUS_PER_CHILD_ADULT;
         }
       }
@@ -608,10 +651,10 @@ Erstelle eine 2-3 Sätze Zusammenfassung.`;
       potential += (100 - profile.deductions.homeOffice.days) * HOME_OFFICE_PER_DAY;
     }
 
-    // Unused Werbungskosten potential (if below average)
-    const averageWerbungskosten = 2000; // Assumed average
-    if (calculation.totalWerbungskosten < averageWerbungskosten) {
-      potential += averageWerbungskosten - calculation.totalWerbungskosten;
+    // Check if basic deduction categories are underutilized
+    // (no assumed averages - only check if common deductions are at zero)
+    if (calculation.totalWerbungskosten === 0) {
+      potential += 500; // Rough potential if no Werbungskosten claimed at all
     }
 
     return potential;

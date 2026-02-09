@@ -8,7 +8,7 @@
 import * as path from 'path';
 import * as fs from 'fs';
 
-import { ipcMain, app, dialog, shell, BrowserWindow } from 'electron';
+import { ipcMain, app, dialog, shell, BrowserWindow, safeStorage } from 'electron';
 
 // Import services
 import { llmService } from '../backend/services/llmService';
@@ -469,16 +469,22 @@ export function registerIpcHandlers(): void {
 
       let generatedForm;
 
+      // Load user profile from DB for form data
+      const userProfile = currentUserId ? dbService.getUser(currentUserId) : null;
+      const profileData = userProfile?.profile_data || {};
+      const greeting = interviewResponses.greeting as string || '';
+      const nameParts = greeting.split(' ');
+
       if (formType === 'L1' || formType === 'all') {
         const l1Data: L1FormData = {
-          sozialversicherungsnummer: 'XXXX XXXXXX',
-          familienname: (interviewResponses.greeting as string)?.split(' ').pop() || 'Name',
-          vorname: (interviewResponses.greeting as string)?.split(' ')[0] || 'Vorname',
-          geburtsdatum: '01.01.1980',
-          strasse: 'Adresse',
-          hausnummer: '1',
-          plz: '1010',
-          ort: 'Wien',
+          sozialversicherungsnummer: (profileData as Record<string, unknown>).svnr as string || '',
+          familienname: (profileData as Record<string, unknown>).last_name as string || nameParts.slice(1).join(' ') || 'BITTE AUSFÜLLEN',
+          vorname: (profileData as Record<string, unknown>).first_name as string || nameParts[0] || 'BITTE AUSFÜLLEN',
+          geburtsdatum: (profileData as Record<string, unknown>).birth_date as string || 'BITTE AUSFÜLLEN',
+          strasse: (profileData as Record<string, unknown>).street as string || 'BITTE AUSFÜLLEN',
+          hausnummer: (profileData as Record<string, unknown>).house_number as string || '',
+          plz: (profileData as Record<string, unknown>).postal_code as string || '',
+          ort: (profileData as Record<string, unknown>).city as string || '',
           veranlagungsjahr: taxYear,
           bruttoeinkunfte: interviewResponses.gross_income as number,
           homeOfficeTage: interviewResponses.home_office_days as number,
@@ -569,18 +575,24 @@ export function registerIpcHandlers(): void {
         calculation = dbService.getLatestCalculation(currentInterviewId);
       }
 
+      // Load user profile from DB for guide data
+      const guideUserProfile = currentUserId ? dbService.getUser(currentUserId) : null;
+      const guideProfileData = guideUserProfile?.profile_data || {};
+      const guideGreeting = interviewResponses.greeting as string || '';
+      const guideNameParts = guideGreeting.split(' ');
+
       const guide = await guideGenerator.generateGuide({
         userId: currentUserId || 'anonymous',
         taxYear,
         formData: {
-          sozialversicherungsnummer: 'XXXX XXXXXX',
-          familienname: (interviewResponses.greeting as string)?.split(' ').pop() || 'Name',
-          vorname: (interviewResponses.greeting as string)?.split(' ')[0] || 'Vorname',
-          geburtsdatum: '01.01.1980',
-          strasse: 'Adresse',
-          hausnummer: '1',
-          plz: '1010',
-          ort: 'Wien',
+          sozialversicherungsnummer: (guideProfileData as Record<string, unknown>).svnr as string || 'XXXX XXXXXX',
+          familienname: (guideProfileData as Record<string, unknown>).last_name as string || guideNameParts.slice(1).join(' ') || 'Name',
+          vorname: (guideProfileData as Record<string, unknown>).first_name as string || guideNameParts[0] || 'Vorname',
+          geburtsdatum: (guideProfileData as Record<string, unknown>).birth_date as string || '',
+          strasse: (guideProfileData as Record<string, unknown>).street as string || '',
+          hausnummer: (guideProfileData as Record<string, unknown>).house_number as string || '',
+          plz: (guideProfileData as Record<string, unknown>).postal_code as string || '',
+          ort: (guideProfileData as Record<string, unknown>).city as string || '',
           veranlagungsjahr: taxYear,
           bruttoeinkunfte: interviewResponses.gross_income as number,
           homeOfficeTage: interviewResponses.home_office_days as number,
@@ -609,18 +621,22 @@ export function registerIpcHandlers(): void {
     try {
       const taxYear = new Date().getFullYear() - 1;
 
+      // Load user profile from DB for export
+      const exportUserProfile = currentUserId ? dbService.getUser(currentUserId) : null;
+      const exportProfileData = exportUserProfile?.profile_data || {};
+
       const guide = await guideGenerator.generateGuide({
         userId: currentUserId || 'anonymous',
         taxYear,
         formData: {
-          sozialversicherungsnummer: 'XXXX XXXXXX',
-          familienname: 'Name',
-          vorname: 'Vorname',
-          geburtsdatum: '01.01.1980',
-          strasse: 'Adresse',
-          hausnummer: '1',
-          plz: '1010',
-          ort: 'Wien',
+          sozialversicherungsnummer: (exportProfileData as Record<string, unknown>).svnr as string || 'XXXX XXXXXX',
+          familienname: (exportProfileData as Record<string, unknown>).last_name as string || 'Name',
+          vorname: (exportProfileData as Record<string, unknown>).first_name as string || 'Vorname',
+          geburtsdatum: (exportProfileData as Record<string, unknown>).birth_date as string || '',
+          strasse: (exportProfileData as Record<string, unknown>).street as string || '',
+          hausnummer: (exportProfileData as Record<string, unknown>).house_number as string || '',
+          plz: (exportProfileData as Record<string, unknown>).postal_code as string || '',
+          ort: (exportProfileData as Record<string, unknown>).city as string || '',
           veranlagungsjahr: taxYear
         },
         hasL1ab: false,
@@ -792,6 +808,73 @@ export function registerIpcHandlers(): void {
     }
 
     return result.filePath;
+  });
+
+  // ========================================
+  // Secure API Key Storage (using safeStorage)
+  // ========================================
+
+  const apiKeysPath = path.join(app.getPath('userData'), 'api-keys.enc');
+  const ALLOWED_KEY_NAMES = ['anthropicApiKey', 'openaiApiKey', 'geminiApiKey', 'openaiCompatibleApiKey'];
+
+  const loadEncryptedKeys = (): Record<string, string> => {
+    try {
+      if (fs.existsSync(apiKeysPath) && safeStorage.isEncryptionAvailable()) {
+        const encrypted = fs.readFileSync(apiKeysPath);
+        const decrypted = safeStorage.decryptString(encrypted);
+        return JSON.parse(decrypted);
+      }
+    } catch (error) {
+      logger.error('Error loading encrypted API keys:', error);
+    }
+    return {};
+  };
+
+  const saveEncryptedKeys = (keys: Record<string, string>): void => {
+    try {
+      if (safeStorage.isEncryptionAvailable()) {
+        const encrypted = safeStorage.encryptString(JSON.stringify(keys));
+        fs.writeFileSync(apiKeysPath, encrypted);
+      } else {
+        logger.warn('safeStorage encryption not available, falling back to settings file');
+        const settings = loadSettings();
+        Object.assign(settings, keys);
+        saveSettings(settings);
+      }
+    } catch (error) {
+      logger.error('Error saving encrypted API keys:', error);
+    }
+  };
+
+  ipcMain.handle('apiKeys:get', async (_event, keyName: string) => {
+    if (!ALLOWED_KEY_NAMES.includes(keyName)) {
+      throw new Error(`Invalid API key name: ${keyName}`);
+    }
+    const keys = loadEncryptedKeys();
+    return keys[keyName] || '';
+  });
+
+  ipcMain.handle('apiKeys:set', async (_event, keyName: string, value: string) => {
+    if (!ALLOWED_KEY_NAMES.includes(keyName)) {
+      throw new Error(`Invalid API key name: ${keyName}`);
+    }
+    const keys = loadEncryptedKeys();
+    if (value) {
+      keys[keyName] = value;
+    } else {
+      delete keys[keyName];
+    }
+    saveEncryptedKeys(keys);
+  });
+
+  ipcMain.handle('apiKeys:getAll', async () => {
+    const keys = loadEncryptedKeys();
+    // Return masked versions for display
+    const masked: Record<string, string> = {};
+    for (const [key, value] of Object.entries(keys)) {
+      masked[key] = value ? `${value.substring(0, 8)}...${value.substring(value.length - 4)}` : '';
+    }
+    return masked;
   });
 
   // ========================================

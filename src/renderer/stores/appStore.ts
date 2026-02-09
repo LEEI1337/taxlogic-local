@@ -30,13 +30,13 @@ export interface AppSettings {
   language: 'de' | 'en';
   preferredLLM: 'ollama' | 'lmStudio' | 'claude' | 'openai' | 'gemini' | 'openaiCompatible';
   ollamaModel: string;
-  anthropicApiKey?: string;
-  openaiApiKey?: string;
+  // API keys are NOT stored in localStorage (security risk)
+  // They are managed via IPC settings:get/settings:set in the main process
+  // Use window.electronAPI.invoke('settings:set', 'anthropicApiKey', key) to store
+  // Use window.electronAPI.invoke('settings:get', 'anthropicApiKey') to retrieve
   openaiModel?: string;
-  geminiApiKey?: string;
   geminiModel?: string;
   openaiCompatibleUrl?: string;
-  openaiCompatibleApiKey?: string;
   openaiCompatibleModel?: string;
 }
 

@@ -75,7 +75,13 @@ const ALLOWED_INVOKE_CHANNELS = [
   // Settings
   'settings:get',
   'settings:set',
-  'settings:reset'
+  'settings:getAll',
+  'settings:reset',
+
+  // Secure API Key Storage
+  'apiKeys:get',
+  'apiKeys:set',
+  'apiKeys:getAll'
 ] as const;
 
 const ALLOWED_ON_CHANNELS = [
