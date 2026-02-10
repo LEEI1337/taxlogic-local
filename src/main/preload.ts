@@ -164,8 +164,17 @@ export interface IElectronAPI {
 
   // Interview operations
   interview: {
-    start: (userProfile: Record<string, unknown>) => Promise<string>;
-    continue: (userInput: string) => Promise<string>;
+    start: (userProfile: Record<string, unknown>) => Promise<{
+      message: string;
+      question: Record<string, unknown> | null;
+      interviewId: string;
+    }>;
+    continue: (userInput: string) => Promise<{
+      message: string;
+      question: Record<string, unknown> | null;
+      isComplete: boolean;
+      validationError?: string;
+    }>;
     getProfile: () => Promise<Record<string, unknown>>;
     save: (data: Record<string, unknown>) => Promise<void>;
     load: (id: string) => Promise<Record<string, unknown>>;

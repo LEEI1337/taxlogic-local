@@ -16,6 +16,20 @@ interface Message {
   timestamp: Date;
 }
 
+/** Safely extract a displayable string from an IPC interview response */
+function extractMessage(response: unknown): string {
+  if (typeof response === 'string') return response;
+  if (response && typeof response === 'object') {
+    const r = response as Record<string, unknown>;
+    if (typeof r.message === 'string' && r.message) return r.message;
+    if (r.question && typeof r.question === 'object') {
+      const q = r.question as Record<string, unknown>;
+      if (typeof q.question === 'string') return q.question;
+    }
+  }
+  return 'Bitte fahren Sie fort.';
+}
+
 function InterviewPage(): React.ReactElement {
   const navigate = useNavigate();
   const { llmStatus, userProfile, setCurrentStep, addNotification } = useAppStore();
@@ -24,6 +38,7 @@ function InterviewPage(): React.ReactElement {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [interviewStarted, setInterviewStarted] = useState(false);
+  const [interviewComplete, setInterviewComplete] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -50,7 +65,7 @@ function InterviewPage(): React.ReactElement {
           {
             id: '1',
             role: 'assistant',
-            content: response,
+            content: extractMessage(response),
             timestamp: new Date()
           }
         ]);
@@ -90,12 +105,19 @@ function InterviewPage(): React.ReactElement {
     try {
       if (window.electronAPI) {
         const response = await window.electronAPI.interview.continue(userMessage.content);
+        const aiMessage = extractMessage(response);
+
+        // Check if interview is complete
+        if (response && typeof response === 'object' && (response as Record<string, unknown>).isComplete) {
+          setInterviewComplete(true);
+        }
+
         setMessages((prev) => [
           ...prev,
           {
             id: (Date.now() + 1).toString(),
             role: 'assistant',
-            content: response,
+            content: aiMessage,
             timestamp: new Date()
           }
         ]);
@@ -249,6 +271,9 @@ function InterviewPage(): React.ReactElement {
             <div className="flex items-center justify-between mt-4">
               <div className="flex items-center gap-2 text-sm text-neutral-500">
                 <span>{messages.filter((m) => m.role === 'user').length} Antworten</span>
+                {interviewComplete && (
+                  <span className="text-green-400 ml-2">✓ Interview abgeschlossen</span>
+                )}
               </div>
 
               <button onClick={proceedToDocuments} className="btn-ghost text-sm">

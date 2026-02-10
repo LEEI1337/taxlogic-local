@@ -7,465 +7,368 @@
    ██║   ██╔══██║ ██╔██╗ ██║     ██║   ██║██║   ██║██║██║         ██║     ██║   ██║██║     ██╔══██║██║
    ██║   ██║  ██║██╔╝ ██╗███████╗╚██████╔╝╚██████╔╝██║╚██████╗██╗███████╗╚██████╔╝╚██████╗██║  ██║███████╗
    ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝ ╚═════╝  ╚═════╝ ╚═╝ ╚═════╝╚═╝╚══════╝ ╚═════╝  ╚═════╝╚═╝  ╚═╝╚══════╝
-
-    🇦🇹 Your Personal AI Tax Advisor for Austria - 100% Local & Private 🔒
 ```
 
-<div align="center">
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Electron](https://img.shields.io/badge/Electron-28+-47848F?logo=electron&logoColor=white)](https://electronjs.org/)
-[![React](https://img.shields.io/badge/React-18+-61DAFB?logo=react&logoColor=white)](https://reactjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.3-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![LangGraph](https://img.shields.io/badge/LangGraph-0.2-FF6B35)](https://langchain-ai.github.io/langgraph/)
-[![Ollama](https://img.shields.io/badge/Ollama-Local%20LLM-000000)](https://ollama.ai/)
-
-[![Code of Conduct](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
-[![Security Policy](https://img.shields.io/badge/Security-Policy-blue.svg)](SECURITY.md)
-[![Documentation](https://img.shields.io/badge/docs-comprehensive-green.svg)](docs/)
-
-**AI-powered tax filing assistant for Austrian individuals**
-
-[Features](#-features) • [Installation](#-installation) • [Quick Start](#-quick-start) • [Architecture](#-architecture) • [Documentation](#-documentation)
-
-</div>
+> **AI-powered tax filing assistant for Austrian individuals - 100% Local & Private**
 
 ---
 
-## 🎯 Overview
+## Overview
 
-**TaxLogic.local** is an enterprise-grade, privacy-first AI tax filing assistant designed specifically for Austrian individuals. It runs **100% locally** on your computer - no cloud, no tracking, no API costs (unless you choose BYOK).
+**TaxLogic.local** is a privacy-first desktop application that helps Austrian taxpayers prepare their Arbeitnehmerveranlagung (employee tax return). It runs entirely on your local machine using local LLMs via Ollama - no cloud, no tracking, no API costs.
 
-```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                                                                              │
-│   👤 User Interview    →    📄 Document OCR    →    📊 Tax Analysis          │
-│                                                                              │
-│   ┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐     │
-│   │  Multi-Agent    │  →   │   Tesseract +   │  →   │   Austrian Tax  │     │
-│   │  AI Interview   │      │   Vision LLM    │      │   Law Engine    │     │
-│   └─────────────────┘      └─────────────────┘      └─────────────────┘     │
-│                                                                              │
-│   📋 Form Generation   →    📖 Step-by-Step Guide   →    ✅ FinanzOnline    │
-│                                                                              │
-│   ┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐     │
-│   │   L1 / L1ab /   │  →   │   Personalized  │  →   │   Ready for     │     │
-│   │   L1k Forms     │      │   Filing Guide  │      │   Submission    │     │
-│   └─────────────────┘      └─────────────────┘      └─────────────────┘     │
-│                                                                              │
-└──────────────────────────────────────────────────────────────────────────────┘
-```
+The app guides you through an AI-powered interview, processes your documents via OCR, calculates deductions, and generates ready-to-submit L1/L1ab/L1k tax forms with a step-by-step FinanzOnline filing guide.
 
 ---
 
-## ✨ Features
+## Requirements
 
-### 🔒 Privacy-First Architecture
-- **100% Local Execution** - All data stays on your computer
-- **No Cloud Dependencies** - Works completely offline
-- **No Tracking** - Zero telemetry, zero analytics
-- **BYOK Optional** - Bring Your Own Key for cloud providers if desired
+| Component | Version | Purpose |
+|-----------|---------|---------|
+| **Node.js** | >= 22.0.0 | Runtime |
+| **npm** | >= 10.0.0 | Package manager |
+| **Ollama** | latest | Local LLM inference |
+| **Docker** (optional) | latest | Run Ollama in container |
 
-### 🤖 Multi-Agent AI System
-- **LangGraph Workflow** - Stateful, graph-based conversation flow
-- **CrewAI Agents** - Specialized agents for different tasks:
-  - 💬 **Interviewer Agent** - Intelligent tax questions
-  - 📄 **Document Inspector** - OCR + classification
-  - 📊 **Analyzer Agent** - Tax calculations & optimization
-  - 📝 **Report Writer** - Guide generation
+### Required Ollama Models
 
-### 🔗 Multiple LLM Providers
-- **Ollama** - Local LLM (Primary, recommended)
-- **LM Studio** - Local LLM (Secondary)
-- **Claude API** - Anthropic Claude (BYOK)
-- **OpenAI/ChatGPT** - GPT-4o, GPT-4 (BYOK)
-- **Google Gemini** - Gemini 1.5 Flash/Pro (BYOK)
-- **OpenAI-Compatible** - Any OpenAI-compatible API endpoint
+| Model | Size | Purpose |
+|-------|------|---------|
+| `llama3.1:8b` | ~4.9 GB | Main conversation & tax analysis |
+| `nomic-embed-text` | ~274 MB | RAG embeddings for knowledge base |
 
-### 📄 Document Processing
-- **Automatic OCR** - Tesseract + Vision LLM support
-- **Smart Classification** - AI-powered expense categorization
-- **Receipt Management** - Organized folder structure
-
-### 🇦🇹 Austrian Tax Compliance
-- **Tax Years 2024-2026** - Full support for current tax laws
-- **Form Generation** - L1, L1ab, L1k official forms
-- **Step-by-Step Guides** - Personalized filing instructions
-- **Audit Preparation** - Documentation for Finanzamt requests
-
-### 💻 Modern Tech Stack
-- **Electron 28+** - Cross-platform desktop app
-- **React 18** - Modern, reactive UI
-- **TypeScript** - Full type safety
-- **SQLite** - Local database (no external dependencies)
-- **TailwindCSS** - Beautiful, responsive design
+> **Important:** The embedding model (`nomic-embed-text`) is **required** for the knowledge base (RAG) to work. Without it, the app will still function but RAG-powered tax law references will be unavailable.
 
 ---
 
-## 📦 Installation
+## Installation
 
-### Prerequisites
+### 1. Clone & Install
 
 ```bash
-# Required
-Node.js >= 22.0.0
-npm >= 10.0.0
-
-# Recommended (for local LLM)
-Ollama - https://ollama.ai
-# or
-LM Studio - https://lmstudio.ai
-```
-
-### Quick Install
-
-```bash
-# Clone the repository
-git clone https://github.com/YOUR_USERNAME/taxlogic-local.git
+git clone https://github.com/LEEI1337/taxlogic-local.git
 cd taxlogic-local
-
-# Install dependencies
 npm install
-
-# Copy environment configuration
-cp .env.example .env.local
-
-# Start the application
-npm run dev
 ```
 
-### Ollama Setup (Recommended)
+### 2. Set Up Ollama
+
+#### Option A: Ollama via Docker (Recommended)
 
 ```bash
-# Install Ollama (if not already installed)
-# Visit: https://ollama.ai/download
+# Start Ollama container
+docker run -d \
+  --name ollama \
+  -p 11434:11434 \
+  -v ollama_data:/root/.ollama \
+  --restart unless-stopped \
+  ollama/ollama
 
 # Pull required models
-ollama pull mistral:latest          # Main conversation model
-ollama pull nomic-embed-text:latest # Embedding model (for RAG)
+docker exec ollama ollama pull llama3.1:8b
+docker exec ollama ollama pull nomic-embed-text
 
-# Verify Ollama is running
-curl http://localhost:11434/api/tags
+# Verify
+docker exec ollama ollama list
 ```
 
----
-
-## 🚀 Quick Start
-
-### 1. Start the Application
+#### Option B: Ollama Native
 
 ```bash
+# Download from https://ollama.com/download
+# Then pull models:
+ollama pull llama3.1:8b
+ollama pull nomic-embed-text
+
+# Verify
+ollama list
+```
+
+### 3. Configure Environment (Optional)
+
+```bash
+cp .env.example .env.local
+```
+
+Default configuration works out of the box with local Ollama on `localhost:11434`.
+
+### 4. Run
+
+```bash
+# Development mode
 npm run dev
+
+# Or production build
+npm run make
 ```
 
-### 2. Complete Onboarding
-
-The app will guide you through:
-- LLM connection verification
-- Basic profile setup
-- First interview configuration
-
-### 3. Conduct Tax Interview
-
-Answer the AI-powered questions about:
-- Your profession and income
-- Commute distances (Pendlerkilometer)
-- Home office usage
-- Professional education expenses
-- Medical expenses
-- Charitable donations
-
-### 4. Upload Documents
-
-Drag & drop your receipts and invoices:
-- Automatic OCR processing
-- AI-powered categorization
-- Organized file structure
-
-### 5. Generate Forms
-
-Export ready-to-submit tax forms:
-- L1 (Main return)
-- L1ab (Business income supplement)
-- L1k (Special expenses)
-
-### 6. Follow the Guide
-
-Get a personalized step-by-step guide for:
-- FinanzOnline submission
-- Document preparation
-- Audit readiness
+The installer will be created at: `out/make/squirrel.windows/x64/TaxLogic-1.0.0-alpha Setup.exe`
 
 ---
 
-## 🏗️ Architecture
+## Usage
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           ELECTRON APP (Desktop)                             │
-├──────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│   ┌────────────────────────────────────────────────────────────────────┐    │
-│   │                      RENDERER PROCESS (React)                       │    │
-│   │   ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌───────────┐ │    │
-│   │   │  Interview   │ │  Documents   │ │   Review     │ │  Export   │ │    │
-│   │   │    Page      │ │    Page      │ │    Page      │ │   Page    │ │    │
-│   │   └──────────────┘ └──────────────┘ └──────────────┘ └───────────┘ │    │
-│   │                              │                                      │    │
-│   │                    ┌─────────┴─────────┐                           │    │
-│   │                    │   Zustand Store   │                           │    │
-│   │                    └─────────┬─────────┘                           │    │
-│   └──────────────────────────────┼──────────────────────────────────────┘    │
-│                                  │ IPC Bridge                                │
-│   ┌──────────────────────────────┼──────────────────────────────────────┐    │
-│   │                      MAIN PROCESS (Node.js)                         │    │
-│   │                              │                                      │    │
-│   │   ┌──────────────────────────┴──────────────────────────┐          │    │
-│   │   │              LangGraph Workflow Engine               │          │    │
-│   │   │   ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐  │          │    │
-│   │   │   │Interview│→│Document │→│Analysis │→│ Forms   │  │          │    │
-│   │   │   │  Node   │ │  Node   │ │  Node   │ │  Node   │  │          │    │
-│   │   │   └─────────┘ └─────────┘ └─────────┘ └─────────┘  │          │    │
-│   │   └─────────────────────────────────────────────────────┘          │    │
-│   │                              │                                      │    │
-│   │   ┌──────────────────────────┴──────────────────────────┐          │    │
-│   │   │                    Services Layer                    │          │    │
-│   │   │  ┌──────────┐  ┌──────────┐  ┌──────────┐           │          │    │
-│   │   │  │   LLM    │  │ Database │  │   OCR    │           │          │    │
-│   │   │  │ Service  │  │ Service  │  │ Service  │           │          │    │
-│   │   │  └──────────┘  └──────────┘  └──────────┘           │          │    │
-│   │   └─────────────────────────────────────────────────────┘          │    │
-│   └─────────────────────────────────────────────────────────────────────┘    │
-│                                  │                                           │
-├──────────────────────────────────┼───────────────────────────────────────────┤
-│                         EXTERNAL SERVICES                                    │
-│                                                                              │
-│   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐                    │
-│   │   Ollama     │   │  LM Studio   │   │  Claude API  │                    │
-│   │  (Primary)   │   │ (Secondary)  │   │   (BYOK)     │                    │
-│   │ localhost:   │   │ localhost:   │   │   Cloud      │                    │
-│   │   11434      │   │   1234       │   │  (Optional)  │                    │
-│   └──────────────┘   └──────────────┘   └──────────────┘                    │
-│                                                                              │
-│   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐                    │
-│   │   OpenAI     │   │   Gemini     │   │  OpenAI-     │                    │
-│   │  (ChatGPT)   │   │  (Google)    │   │ Compatible   │                    │
-│   │   (BYOK)     │   │   (BYOK)     │   │  (Custom)    │                    │
-│   │   Cloud      │   │   Cloud      │   │  Any URL     │                    │
-│   └──────────────┘   └──────────────┘   └──────────────┘                    │
-│                                                                              │
-└──────────────────────────────────────────────────────────────────────────────┘
-```
+### Onboarding Wizard
+
+On first launch, the onboarding wizard guides you through:
+
+1. **LLM Setup** - Configure Ollama URL, select model, test connection
+2. **Profile** - Set your profession and employment status (Angestellt/Selbststaendig)
+3. **Privacy Warning** - If using Claude API (BYOK), you'll see a data privacy notice
+
+### Tax Interview
+
+The AI interviewer asks about:
+- Personal information (name, tax ID)
+- Income sources and amounts
+- Commute distance (Pendlerpauschale)
+- Home office days
+- Professional education expenses (Fortbildung)
+- Work equipment (Arbeitsmittel)
+- Medical and extraordinary expenses
+- Charitable donations (Spenden)
+- Childcare (Kinderbetreuung)
+- Church tax (Kirchenbeitrag)
+
+### Document Upload
+
+Drag & drop receipts and invoices:
+- Automatic OCR via Tesseract.js
+- AI-powered expense categorization
+- Organized folder structure
+
+### Analysis & Review
+
+- Automatic tax calculation based on Austrian tax law
+- Deduction optimization suggestions
+- Estimated refund calculation
+
+### Form Generation & Export
+
+- **L1** - Main Arbeitnehmerveranlagung
+- **L1ab** - Business income supplement
+- **L1k** - Child-related deductions
+- **Filing Guide** - Step-by-step FinanzOnline instructions
 
 ---
 
-## 📁 Project Structure
+## Architecture
 
 ```
-taxlogic-local/
-├── src/
-│   ├── main/                    # Electron main process
-│   │   ├── index.ts             # App entry point
-│   │   ├── preload.ts           # IPC bridge
-│   │   ├── ipcHandlers.ts       # IPC channel handlers
-│   │   ├── menu.ts              # Application menu
-│   │   └── utils/
-│   │       └── logger.ts        # Logging utility
-│   │
-│   ├── renderer/                # React UI
-│   │   ├── App.tsx              # Root component
-│   │   ├── index.tsx            # Entry point
-│   │   ├── pages/               # Page components
-│   │   │   ├── OnboardingPage.tsx
-│   │   │   ├── InterviewPage.tsx
-│   │   │   ├── DocumentUploadPage.tsx
-│   │   │   ├── ReviewPage.tsx
-│   │   │   ├── ExportPage.tsx
-│   │   │   └── SettingsPage.tsx
-│   │   ├── components/          # UI components
-│   │   │   ├── Layout.tsx
-│   │   │   ├── Sidebar.tsx
-│   │   │   ├── StatusBar.tsx
-│   │   │   └── NotificationContainer.tsx
-│   │   ├── stores/              # Zustand stores
-│   │   │   └── appStore.ts
-│   │   └── styles/
-│   │       └── globals.css      # TailwindCSS
-│   │
-│   └── backend/                 # Backend services
-│       ├── agents/              # CrewAI agents
-│       │   ├── interviewerAgent.ts
-│       │   ├── documentInspectorAgent.ts
-│       │   ├── analyzerAgent.ts
-│       │   └── reportWriterAgent.ts
-│       ├── workflows/           # LangGraph workflows
-│       │   └── taxWorkflow.ts
-│       ├── services/            # Core services
-│       │   ├── llmService.ts       # Unified LLM interface (Ollama/LM Studio/Claude)
-│       │   ├── dbService.ts        # SQLite database (sql.js)
-│       │   ├── ocrService.ts       # Tesseract.js OCR processing
-│       │   ├── documentOrganizer.ts # AI-powered document classification
-│       │   ├── formGenerator.ts    # L1/L1ab/L1k PDF generation
-│       │   └── guideGenerator.ts   # Step-by-step guide generator
-│       └── rag/                 # RAG system
-│           ├── embeddings.ts       # Ollama embeddings service
-│           ├── knowledgeBase.ts    # Vector store with Austrian tax law
-│           └── retriever.ts        # Semantic search with citations
+TaxLogic.local
+├── Renderer (React 18 + TypeScript)
+│   ├── Pages: Onboarding, Interview, Documents, Review, Export, Settings
+│   ├── State: Zustand with localStorage persistence
+│   └── IPC Bridge: Typed preload API
 │
-├── data/                        # User data (gitignored)
-│   ├── documents/               # Uploaded files
-│   ├── output/                  # Generated forms
-│   ├── models/                  # Cached LLM models
-│   ├── cache/                   # Processing cache
-│   └── knowledge/               # Tax law documents
+├── Main Process (Electron + Node.js)
+│   ├── IPC Handlers: 30+ channels for all operations
+│   ├── Services:
+│   │   ├── llmService     - Unified LLM interface (Ollama/LM Studio/Claude/OpenAI/Gemini)
+│   │   ├── dbService      - SQLite via sql.js (pure JS, no native deps)
+│   │   ├── ocrService     - Tesseract.js OCR
+│   │   ├── formGenerator  - PDFKit L1/L1ab/L1k generation
+│   │   └── guideGenerator - Markdown/PDF filing guides
+│   ├── Agents:
+│   │   ├── interviewerAgent       - 25-question tax interview conductor
+│   │   ├── documentInspectorAgent - OCR + classification + analysis
+│   │   └── analyzerAgent          - Tax calculations & optimization
+│   └── RAG:
+│       ├── embeddings    - Ollama nomic-embed-text (768-dim vectors)
+│       ├── knowledgeBase - In-memory vector store with Austrian tax law
+│       └── retriever     - Semantic search with source citations
 │
-├── db/                          # SQLite database
-│   └── taxlogic.db
-│
-├── tests/                       # Test suites
-│   ├── unit/
-│   └── e2e/
-│
-├── config/                      # Configuration
-├── docs/                        # Documentation
-│
-├── package.json
-├── tsconfig.json
-├── forge.config.ts              # Electron Forge config
-├── tailwind.config.js
-└── README.md
+└── External:
+    ├── Ollama (localhost:11434) - Primary LLM + Embeddings
+    ├── LM Studio (localhost:1234) - Alternative local LLM
+    └── Cloud APIs (optional BYOK) - Claude, OpenAI, Gemini
 ```
+
+### Key Technical Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| `sql.js` instead of `better-sqlite3` | Pure JS, no native compilation needed |
+| `sql.js` as webpack external | CommonJS `module.exports` breaks in webpack bundle |
+| Lazy `getDefaultConfig()` | dotenv loads after webpack hoists ES imports |
+| Non-blocking KnowledgeBase init | App works even if embedding model is unavailable |
+| EPIPE error handling | Prevents crash loops when Squirrel closes parent process |
+| Renderer webpack rule filtering | `@vercel/webpack-asset-relocator-loader` injects `__dirname` into renderer |
 
 ---
 
-## 🔧 Configuration
+## LLM Providers
+
+### Local (Free, Private)
+
+| Provider | URL | Models |
+|----------|-----|--------|
+| **Ollama** | `http://localhost:11434` | llama3.1:8b, mistral, qwen2.5, gemma2 |
+| **LM Studio** | `http://localhost:1234` | Any GGUF model |
+
+### Cloud (BYOK - Bring Your Own Key)
+
+| Provider | Privacy Warning |
+|----------|----------------|
+| **Claude** (Anthropic) | Data sent to Anthropic servers |
+| **OpenAI/ChatGPT** | Data sent to OpenAI servers |
+| **Google Gemini** | Data sent to Google servers |
+| **OpenAI-Compatible** | Depends on endpoint |
+
+> **Privacy Note:** When using cloud providers, your tax data is sent to external servers. Use local providers (Ollama/LM Studio) for maximum privacy.
+
+---
+
+## Development
+
+```bash
+# Start dev server (hot reload)
+npm run dev
+
+# Run tests (163 tests)
+npm test
+
+# Type checking
+npm run type-check
+
+# Lint
+npm run lint
+npm run lint:fix
+
+# Build installer
+npm run make
+```
+
+### Ports
+
+| Port | Service | Configurable in |
+|------|---------|-----------------|
+| 3456 | Webpack Dev Server | `forge.config.ts` → `port` |
+| 9876 | Webpack Logger | `forge.config.ts` → `loggerPort` |
+| 11434 | Ollama API | `.env.local` → `OLLAMA_BASE_URL` |
 
 ### Environment Variables
 
 ```bash
 # .env.local
 
-# LLM Configuration (Local Providers)
+# Ollama (default: http://localhost:11434)
 OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=mistral:latest
+OLLAMA_MODEL=llama3.1:8b
+
+# LM Studio (default: http://localhost:1234)
 LM_STUDIO_URL=http://localhost:1234
 
-# Cloud Providers (Optional BYOK)
-ANTHROPIC_API_KEY=sk-ant-...      # Claude API
-OPENAI_API_KEY=sk-...             # OpenAI / ChatGPT
-GEMINI_API_KEY=...                # Google Gemini
-OPENAI_COMPATIBLE_URL=...         # Custom OpenAI-compatible endpoint
+# Cloud Providers (optional BYOK)
+ANTHROPIC_API_KEY=sk-ant-...
+OPENAI_API_KEY=sk-...
+GEMINI_API_KEY=...
 
-# Database
+# Database (default: ./db/taxlogic.db)
 DATABASE_PATH=./db/taxlogic.db
-
-# RAG (Optional)
-QDRANT_URL=http://localhost:6333
-
-# Features
-FEATURE_OCR_ENABLED=true
-FEATURE_RAG_ENABLED=true
 ```
 
 ---
 
-## 📚 Documentation
+## Project Structure
 
-### User Documentation
-- [User Manual](docs/USER_GUIDE.md) - Complete user guide
-- [Setup Guide](docs/SETUP.md) - Installation and configuration
-
-### Developer Documentation
-- [Architecture Guide](docs/ARCHITECTURE.md) - System design and architecture
-- [API Reference](docs/API.md) - Complete API documentation
-- [Coding Standards](docs/CODING_STANDARDS.md) - Code style and best practices
-
-### Project Documentation
-- [Contributing Guide](CONTRIBUTING.md) - How to contribute
-- [Code of Conduct](CODE_OF_CONDUCT.md) - Community guidelines
-- [Security Policy](SECURITY.md) - Security guidelines and vulnerability reporting
-- [Changelog](CHANGELOG.md) - Version history
-- [Governance](docs/GOVERNANCE.md) - Project governance
+```
+taxlogic-local/
+├── src/
+│   ├── main/                       # Electron main process
+│   │   ├── index.ts                # App entry, EPIPE handling, dotenv
+│   │   ├── preload.ts              # Typed IPC bridge (30+ channels)
+│   │   ├── ipcHandlers.ts          # All IPC handler implementations
+│   │   ├── menu.ts                 # Native application menu
+│   │   └── utils/logger.ts         # EPIPE-safe logger
+│   │
+│   ├── renderer/                   # React UI
+│   │   ├── App.tsx                 # Router + onboarding redirect
+│   │   ├── pages/
+│   │   │   ├── OnboardingPage.tsx  # 4-step setup wizard
+│   │   │   ├── InterviewPage.tsx   # AI chat interview
+│   │   │   ├── DocumentUploadPage.tsx
+│   │   │   ├── ReviewPage.tsx      # Tax analysis display
+│   │   │   ├── ExportPage.tsx      # Form generation & download
+│   │   │   └── SettingsPage.tsx    # LLM config, profile, theme
+│   │   ├── components/
+│   │   │   ├── Layout.tsx          # Shell + menu event handlers
+│   │   │   ├── Sidebar.tsx         # Navigation
+│   │   │   ├── StatusBar.tsx       # LLM status + model display
+│   │   │   └── NotificationContainer.tsx
+│   │   └── stores/appStore.ts      # Zustand + persist
+│   │
+│   └── backend/
+│       ├── agents/
+│       │   ├── interviewerAgent.ts       # 25 tax questions with validation
+│       │   ├── documentInspectorAgent.ts # OCR + AI classification
+│       │   └── analyzerAgent.ts          # Tax calculation engine
+│       ├── services/
+│       │   ├── llmService.ts       # 6 provider adapters
+│       │   ├── dbService.ts        # sql.js SQLite
+│       │   ├── ocrService.ts       # Tesseract.js
+│       │   ├── formGenerator.ts    # PDFKit L1/L1ab/L1k
+│       │   ├── documentOrganizer.ts
+│       │   └── guideGenerator.ts   # Markdown + PDF guides
+│       ├── rag/
+│       │   ├── embeddings.ts       # nomic-embed-text via Ollama
+│       │   ├── knowledgeBase.ts    # 8 Austrian tax law documents
+│       │   └── retriever.ts        # Semantic search
+│       └── workflows/
+│           └── taxWorkflow.ts      # LangGraph state machine
+│
+├── tests/                          # 163 tests (vitest)
+├── forge.config.ts                 # Electron Forge + Squirrel
+├── webpack.main.config.ts          # Main process webpack (externals: sql.js)
+├── webpack.renderer.config.ts      # Renderer webpack (filtered rules)
+├── webpack.rules.ts                # Shared webpack rules
+└── package.json
+```
 
 ---
 
-## 🛣️ Roadmap
+## Troubleshooting
 
-### Phase 1 - MVP ✅
-- [x] Electron + React foundation
-- [x] Basic UI components (6 pages)
-- [x] Zustand state management
-- [x] LLM service (Ollama/LM Studio/Claude)
-- [x] SQLite database with sql.js
+### Blank page after install
+The `@vercel/webpack-asset-relocator-loader` injects `__dirname` into the renderer bundle. Fixed by filtering `node-loader` and `asset-relocator-loader` from `webpack.renderer.config.ts`.
 
-### Phase 2 - Core Features ✅
-- [x] **OCR Service** - Tesseract.js integration for receipt scanning
-- [x] **Document Organizer** - AI-powered expense categorization
-- [x] **Form Generator** - L1, L1ab, L1k PDF generation with PDFKit
-- [x] **Guide Generator** - Personalized step-by-step filing guides
-- [x] **LangGraph Workflow** - 6-node stateful tax filing process
-- [x] **Multi-Agent System**
-  - [x] Interviewer Agent - Intelligent tax interview conductor
-  - [x] Document Inspector Agent - OCR + classification + analysis
-  - [x] Analyzer Agent - Austrian tax calculations & optimization
-  - [x] Report Writer Agent - Comprehensive report generation
-- [x] **RAG System** - Knowledge base with Austrian tax law
-  - [x] Embeddings service (Ollama nomic-embed-text)
-  - [x] Vector knowledge base (in-memory + file persistence)
-  - [x] Semantic retriever with source citations
-- [x] **Complete IPC Integration** - All services connected to frontend
+### EPIPE broken pipe crash loop
+Happens when Squirrel updater closes the parent process while the app is writing to stdout. Fixed with:
+- `doc.on('error', reject)` on all PDFKit streams
+- try/catch in logger around console calls
+- EPIPE ignored in `uncaughtException` handler
 
-### Phase 3 - Planned 📋
-- [ ] FinanzOnline API integration
-- [ ] Multi-language support (DE/EN)
-- [ ] Cloud backup (optional, encrypted)
-- [ ] Mobile companion app
-- [ ] Qdrant vector database integration
-- [ ] Voice input for interviews
+### Port conflicts (EADDRINUSE)
+Default ports 3000/9000 may be occupied. Configured in `forge.config.ts`:
+- `port: 3456` (dev server)
+- `loggerPort: 9876` (webpack logger)
 
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) first.
-
+### Knowledge base fails to initialize
+The RAG system requires the `nomic-embed-text` model in Ollama. Install it:
 ```bash
-# Fork the repository
-# Create your feature branch
-git checkout -b feature/amazing-feature
+# Docker
+docker exec ollama ollama pull nomic-embed-text
 
-# Commit your changes
-git commit -m 'Add amazing feature'
-
-# Push to the branch
-git push origin feature/amazing-feature
-
-# Open a Pull Request
+# Native
+ollama pull nomic-embed-text
 ```
+The app still works without it - RAG features will be unavailable but interviews and form generation work normally.
+
+### Environment variables not loaded
+Webpack hoists ES imports before `dotenv.config()` runs. Service configs use lazy `getDefaultConfig()` functions to read env vars at call time, not module init time.
 
 ---
 
-## 📄 License
+## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 🙏 Acknowledgments
-
-- [Electron](https://electronjs.org/) - Cross-platform desktop apps
-- [LangChain](https://langchain.com/) - LLM orchestration
-- [Ollama](https://ollama.ai/) - Local LLM runtime
-- [Anthropic](https://anthropic.com/) - Claude API
-- [TailwindCSS](https://tailwindcss.com/) - Utility-first CSS
+MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
 <div align="center">
 
-**Made with ❤️ in Austria 🇦🇹**
+**Made with care in Austria**
 
-[Website](https://taxlogic.local) • [GitHub](https://github.com/YOUR_USERNAME/taxlogic-local) • [Issues](https://github.com/YOUR_USERNAME/taxlogic-local/issues)
+[GitHub](https://github.com/LEEI1337/taxlogic-local) | [Issues](https://github.com/LEEI1337/taxlogic-local/issues)
 
 </div>

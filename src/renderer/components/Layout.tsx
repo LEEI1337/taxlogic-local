@@ -41,12 +41,18 @@ function Layout(): React.ReactElement {
     };
 
     for (const [channel, handler] of Object.entries(menuHandlers)) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const cleanup = window.electronAPI.on(channel as any, handler);
-      cleanups.push(cleanup);
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const cleanup = window.electronAPI.on(channel as any, handler);
+        if (typeof cleanup === 'function') {
+          cleanups.push(cleanup);
+        }
+      } catch {
+        // Ignore channels not registered in preload
+      }
     }
 
-    return () => cleanups.forEach((c) => c());
+    return () => cleanups.forEach((c) => { try { c(); } catch { /* ignore */ } });
   }, [navigate, checkLLMStatus, addNotification]);
 
   // Get current page title

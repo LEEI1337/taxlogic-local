@@ -43,9 +43,12 @@ async function initializeServices(): Promise<void> {
     await dbService.initialize();
     logger.info('Database initialized');
 
-    // Initialize knowledge base
-    await knowledgeBase.initialize();
-    logger.info('Knowledge base initialized');
+    // Initialize knowledge base (non-blocking - don't prevent app from working if embeddings fail)
+    knowledgeBase.initialize().then(() => {
+      logger.info('Knowledge base initialized');
+    }).catch((kbError) => {
+      logger.warn('Knowledge base initialization failed (RAG features will be unavailable):', kbError);
+    });
 
     // Check for existing user or create new one
     const users = dbService.getAllUsers();

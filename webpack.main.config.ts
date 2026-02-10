@@ -24,6 +24,7 @@ export const mainConfig: Configuration = {
   },
   externals: {
     'better-sqlite3': 'commonjs better-sqlite3',
-    'sharp': 'commonjs sharp'
+    'sharp': 'commonjs sharp',
+    'sql.js': 'commonjs sql.js'
   }
 };

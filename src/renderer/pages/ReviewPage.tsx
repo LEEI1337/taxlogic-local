@@ -41,8 +41,16 @@ function ReviewPage(): React.ReactElement {
     try {
       if (window.electronAPI) {
         const result = await window.electronAPI.invoke('analysis:getResults') as TaxAnalysis | null;
-        if (result) {
-          setAnalysis(result);
+        if (result && typeof result === 'object') {
+          // Ensure all required fields have defaults
+          setAnalysis({
+            totalIncome: result.totalIncome || 0,
+            totalDeductions: result.totalDeductions || 0,
+            taxableIncome: result.taxableIncome || 0,
+            estimatedTax: result.estimatedTax || 0,
+            estimatedRefund: result.estimatedRefund || 0,
+            deductions: Array.isArray(result.deductions) ? result.deductions : []
+          });
         } else {
           setAnalysis(null);
         }
@@ -60,11 +68,12 @@ function ReviewPage(): React.ReactElement {
     loadAnalysis();
   }, [loadAnalysis]);
 
-  const formatCurrency = (amount: number): string => {
+  const formatCurrency = (amount: number | null | undefined): string => {
+    const value = typeof amount === 'number' && !isNaN(amount) ? amount : 0;
     return new Intl.NumberFormat('de-AT', {
       style: 'currency',
       currency: 'EUR'
-    }).format(amount);
+    }).format(value);
   };
 
   const proceedToExport = (): void => {
@@ -123,7 +132,7 @@ function ReviewPage(): React.ReactElement {
         <h3 className="font-medium text-white mb-4">Absetzungen im Detail</h3>
 
         <div className="space-y-3">
-          {analysis.deductions.map((category) => (
+          {(analysis.deductions || []).map((category) => (
             <div key={category.name} className="card overflow-hidden">
               <button
                 onClick={() =>
@@ -177,7 +186,7 @@ function ReviewPage(): React.ReactElement {
                       </tr>
                     </thead>
                     <tbody className="text-sm">
-                      {category.items.map((item, index) => (
+                      {(category.items || []).map((item, index) => (
                         <tr key={index} className="border-t border-neutral-700/50">
                           <td className="py-2 text-white">{item.description}</td>
                           <td className="py-2 text-neutral-400">{item.date}</td>
