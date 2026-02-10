@@ -9,14 +9,29 @@ import path from 'path';
 import { config as dotenvConfig } from 'dotenv';
 
 // Load .env.local (then .env as fallback) before anything else
-dotenvConfig({ path: path.join(__dirname, '..', '..', '.env.local') });
-dotenvConfig({ path: path.join(__dirname, '..', '..', '.env') });
+// In packaged apps, use app.getAppPath() as base; in dev, __dirname works
+try {
+  const basePaths = [
+    path.join(__dirname, '..', '..'),
+    path.join(__dirname, '..'),
+    __dirname
+  ];
+  for (const base of basePaths) {
+    dotenvConfig({ path: path.join(base, '.env.local') });
+    dotenvConfig({ path: path.join(base, '.env') });
+  }
+} catch {
+  // dotenv loading is optional - app works without it
+}
 
 import { app, BrowserWindow, Menu, shell, dialog } from 'electron';
 
 import { registerIpcHandlers } from './ipcHandlers';
 import { createApplicationMenu } from './menu';
 import { logger } from './utils/logger';
+
+// Set app name for Task Manager and system integration
+app.setName('TaxLogic');
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling
 if (require('electron-squirrel-startup')) {
@@ -160,11 +175,21 @@ app.on('will-quit', () => {
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
-  logger.error('Uncaught exception:', error);
-  dialog.showErrorBox(
-    'An unexpected error occurred',
-    `${error.message}\n\nThe application will now close.`
-  );
+  // Ignore EPIPE errors - these happen when stdout/stderr pipes break
+  // (e.g., when Squirrel updater closes the parent process)
+  if (error && (error as NodeJS.ErrnoException).code === 'EPIPE') {
+    return;
+  }
+
+  try {
+    logger.error('Uncaught exception:', error);
+    dialog.showErrorBox(
+      'Ein unerwarteter Fehler ist aufgetreten',
+      `${error.message}\n\nDie Anwendung wird jetzt geschlossen.`
+    );
+  } catch {
+    // If even the error dialog fails, just quit silently
+  }
   app.quit();
 });
 

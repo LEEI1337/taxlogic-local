@@ -278,6 +278,7 @@ class FormGeneratorService {
 
     // Wait for the file to be written
     await new Promise<void>((resolve, reject) => {
+      doc.on('error', reject);
       writeStream.on('finish', resolve);
       writeStream.on('error', reject);
     });

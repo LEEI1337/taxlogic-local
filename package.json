@@ -1,5 +1,6 @@
 {
   "name": "taxlogic-local",
+  "productName": "TaxLogic",
   "version": "1.0.0-alpha",
   "description": "AI-powered local tax filing assistant for Austria - 100% privacy-first",
   "main": ".webpack/main",

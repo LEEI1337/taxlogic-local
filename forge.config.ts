@@ -75,6 +75,8 @@ const config: ForgeConfig = {
     new WebpackPlugin({
       mainConfig,
       devContentSecurityPolicy: "default-src 'self' 'unsafe-inline' data:; script-src 'self' 'unsafe-eval' 'unsafe-inline' data:; connect-src 'self' http://localhost:* ws://localhost:* http://*:11434",
+      loggerPort: 9876,
+      port: 3456,
       renderer: {
         config: rendererConfig,
         entryPoints: [

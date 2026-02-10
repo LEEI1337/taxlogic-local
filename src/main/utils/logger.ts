@@ -59,19 +59,23 @@ class Logger {
     const entry = this.formatMessage(level, message, args.length > 0 ? args : undefined);
     const prefix = this.colorize(level, `[${entry.timestamp}] [${level.toUpperCase()}]`);
 
-    switch (level) {
-      case 'debug':
-        console.debug(prefix, message, ...args);
-        break;
-      case 'info':
-        console.info(prefix, message, ...args);
-        break;
-      case 'warn':
-        console.warn(prefix, message, ...args);
-        break;
-      case 'error':
-        console.error(prefix, message, ...args);
-        break;
+    try {
+      switch (level) {
+        case 'debug':
+          console.debug(prefix, message, ...args);
+          break;
+        case 'info':
+          console.info(prefix, message, ...args);
+          break;
+        case 'warn':
+          console.warn(prefix, message, ...args);
+          break;
+        case 'error':
+          console.error(prefix, message, ...args);
+          break;
+      }
+    } catch {
+      // Swallow EPIPE and other write errors to prevent crash loops
     }
   }
 

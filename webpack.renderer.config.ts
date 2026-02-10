@@ -14,7 +14,17 @@ rules.push({
 
 export const rendererConfig: Configuration = {
   module: {
-    rules
+    rules: rules.filter((rule) => {
+      // Exclude node-loader and asset-relocator-loader from renderer
+      // These are only needed for main process native modules
+      if (rule && typeof rule === 'object' && 'use' in rule) {
+        const use = rule.use;
+        if (use === 'node-loader') return false;
+        if (typeof use === 'object' && use !== null && 'loader' in use &&
+            (use as { loader: string }).loader === '@vercel/webpack-asset-relocator-loader') return false;
+      }
+      return true;
+    })
   },
   plugins,
   resolve: {

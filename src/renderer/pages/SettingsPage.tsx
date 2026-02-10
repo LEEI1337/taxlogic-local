@@ -3,6 +3,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { useAppStore, AppSettings } from '../stores/appStore';
 
@@ -11,12 +12,16 @@ const API_KEY_NAMES = ['anthropicApiKey', 'openaiApiKey', 'geminiApiKey', 'opena
 type ApiKeyName = typeof API_KEY_NAMES[number];
 
 function SettingsPage(): React.ReactElement {
+  const navigate = useNavigate();
   const {
     settings,
     updateSettings,
     llmStatus,
     checkLLMStatus,
-    isCheckingLLM
+    isCheckingLLM,
+    userProfile,
+    setUserProfile,
+    setOnboarded
   } = useAppStore();
 
   // API keys are stored securely via Electron safeStorage, not in Zustand/localStorage
@@ -284,6 +289,45 @@ function SettingsPage(): React.ReactElement {
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Profile */}
+      <section className="card p-6 mb-6">
+        <h3 className="font-medium text-white mb-4">Profil</h3>
+        <div className="space-y-4">
+          <div>
+            <label className="label">Beruf / Tatigkeit</label>
+            <input
+              type="text"
+              value={userProfile.profession || ''}
+              onChange={(e) => setUserProfile({ profession: e.target.value })}
+              className="input"
+              placeholder="z.B. Software-Entwickler, Lehrer, Arzt..."
+            />
+          </div>
+          <div>
+            <label className="label">Beschaftigungsstatus</label>
+            <select
+              value={userProfile.employmentStatus || 'employee'}
+              onChange={(e) => setUserProfile({ employmentStatus: e.target.value as 'employee' | 'freelancer' | 'business_owner' | 'retired' })}
+              className="input"
+            >
+              <option value="employee">Angestellt</option>
+              <option value="freelancer">Freiberuflich</option>
+              <option value="business_owner">Unternehmer</option>
+              <option value="retired">Pensionist</option>
+            </select>
+          </div>
+          <button
+            onClick={() => {
+              setOnboarded(false);
+              navigate('/onboarding');
+            }}
+            className="btn-ghost text-sm text-neutral-400 hover:text-white"
+          >
+            Einrichtungsassistent erneut starten
+          </button>
         </div>
       </section>
 

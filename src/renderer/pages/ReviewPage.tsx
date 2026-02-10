@@ -39,60 +39,18 @@ function ReviewPage(): React.ReactElement {
   const loadAnalysis = useCallback(async (): Promise<void> => {
     setIsLoading(true);
     try {
-      // Simulate loading analysis
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      // Mock analysis data
-      setAnalysis({
-        totalIncome: 52000,
-        totalDeductions: 4850,
-        taxableIncome: 47150,
-        estimatedTax: 12500,
-        estimatedRefund: 1420,
-        deductions: [
-          {
-            name: 'Pendlerkilometer',
-            amount: 2100,
-            items: [
-              { description: 'Tagliche Pendelstrecke 35km', amount: 2100, date: '2024' }
-            ]
-          },
-          {
-            name: 'Home Office',
-            amount: 900,
-            items: [
-              { description: 'Home Office Pauschale (150 Tage)', amount: 900, date: '2024' }
-            ]
-          },
-          {
-            name: 'Fortbildung',
-            amount: 850,
-            items: [
-              { description: 'Online-Kurs TypeScript', amount: 299, date: '2024-03-15' },
-              { description: 'Fachbuch React', amount: 51, date: '2024-05-20' },
-              { description: 'Konferenz-Ticket', amount: 500, date: '2024-09-10' }
-            ]
-          },
-          {
-            name: 'Kirchenbeitrag',
-            amount: 400,
-            items: [
-              { description: 'Romisch-Katholische Kirche', amount: 400, date: '2024' }
-            ]
-          },
-          {
-            name: 'Sonstige',
-            amount: 600,
-            items: [
-              { description: 'Arbeitsmittel (Headset, Maus)', amount: 150, date: '2024-02-10' },
-              { description: 'Spende Caritas', amount: 200, date: '2024-06-01' },
-              { description: 'Spende Rotes Kreuz', amount: 250, date: '2024-12-15' }
-            ]
-          }
-        ]
-      });
+      if (window.electronAPI) {
+        const result = await window.electronAPI.invoke('analysis:getResults') as TaxAnalysis | null;
+        if (result) {
+          setAnalysis(result);
+        } else {
+          setAnalysis(null);
+        }
+      }
     } catch (error) {
-      addNotification('error', 'Fehler beim Laden der Analyse');
+      console.error('Failed to load analysis:', error);
+      addNotification('error', 'Noch keine Analyse vorhanden. Bitte zuerst das Interview abschliessen.');
+      setAnalysis(null);
     } finally {
       setIsLoading(false);
     }

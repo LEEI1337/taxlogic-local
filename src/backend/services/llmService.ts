@@ -44,25 +44,28 @@ export interface LLMResponse {
   tokensUsed?: number;
 }
 
-const DEFAULT_CONFIG: LLMConfig = {
-  provider: 'ollama',
-  ollamaBaseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
-  ollamaModel: process.env.OLLAMA_MODEL || 'mistral:latest',
-  lmStudioUrl: 'http://localhost:1234',
-  lmStudioModel: 'local-model',
-  anthropicModel: 'claude-3-5-sonnet-20241022',
-  openaiModel: 'gpt-4o',
-  openaiBaseUrl: 'https://api.openai.com/v1',
-  geminiModel: 'gemini-1.5-flash',
-  openaiCompatibleModel: 'local-model'
-};
+// Lazy evaluation of env vars - dotenv may not have loaded yet at module init time
+function getDefaultConfig(): LLMConfig {
+  return {
+    provider: 'ollama',
+    ollamaBaseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
+    ollamaModel: process.env.OLLAMA_MODEL || 'mistral:latest',
+    lmStudioUrl: 'http://localhost:1234',
+    lmStudioModel: 'local-model',
+    anthropicModel: 'claude-3-5-sonnet-20241022',
+    openaiModel: 'gpt-4o',
+    openaiBaseUrl: 'https://api.openai.com/v1',
+    geminiModel: 'gemini-1.5-flash',
+    openaiCompatibleModel: 'local-model'
+  };
+}
 
 class LLMService {
   private config: LLMConfig;
   private anthropicClient: Anthropic | null = null;
 
   constructor(config: Partial<LLMConfig> = {}) {
-    this.config = { ...DEFAULT_CONFIG, ...config };
+    this.config = { ...getDefaultConfig(), ...config };
 
     // Initialize Anthropic client if API key is provided
     if (this.config.anthropicApiKey) {
