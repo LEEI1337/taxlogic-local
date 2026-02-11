@@ -1,64 +1,37 @@
 # TaxLogic.local - Architektur
 
-## Übersicht
+## Uebersicht
 
-TaxLogic.local ist eine Electron-basierte Desktop-Anwendung für die KI-gestützte Steuererklärung in Österreich. Die Architektur folgt dem Prinzip "Privacy First" - alle Daten bleiben lokal.
+TaxLogic.local ist eine Electron-basierte Desktop-Anwendung fuer die KI-gestuetzte Steuererklaerung in Oesterreich. Die Architektur folgt dem Prinzip "Privacy First" - alle Daten bleiben lokal.
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           ELECTRON APP (Desktop)                             │
-├──────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│   ┌────────────────────────────────────────────────────────────────────┐    │
-│   │                      RENDERER PROCESS (React)                       │    │
-│   │   ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌───────────┐ │    │
-│   │   │  Interview   │ │  Documents   │ │   Review     │ │  Export   │ │    │
-│   │   │    Page      │ │    Page      │ │    Page      │ │   Page    │ │    │
-│   │   └──────────────┘ └──────────────┘ └──────────────┘ └───────────┘ │    │
-│   │                              │                                      │    │
-│   │                    ┌─────────┴─────────┐                           │    │
-│   │                    │   Zustand Store   │                           │    │
-│   │                    └─────────┬─────────┘                           │    │
-│   └──────────────────────────────┼──────────────────────────────────────┘    │
-│                                  │ IPC Bridge                                │
-│   ┌──────────────────────────────┼──────────────────────────────────────┐    │
-│   │                      MAIN PROCESS (Node.js)                         │    │
-│   │                              │                                      │    │
-│   │   ┌──────────────────────────┴──────────────────────────┐          │    │
-│   │   │              LangGraph Workflow Engine               │          │    │
-│   │   │   ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐  │          │    │
-│   │   │   │Interview│→│Document │→│Analysis │→│ Forms   │  │          │    │
-│   │   │   │  Node   │ │  Node   │ │  Node   │ │  Node   │  │          │    │
-│   │   │   └─────────┘ └─────────┘ └─────────┘ └─────────┘  │          │    │
-│   │   └─────────────────────────────────────────────────────┘          │    │
-│   │                              │                                      │    │
-│   │   ┌──────────────────────────┴──────────────────────────┐          │    │
-│   │   │                    Services Layer                    │          │    │
-│   │   │  ┌──────────┐  ┌──────────┐  ┌──────────┐           │          │    │
-│   │   │  │   LLM    │  │ Database │  │   OCR    │           │          │    │
-│   │   │  │ Service  │  │ Service  │  │ Service  │           │          │    │
-│   │   │  └──────────┘  └──────────┘  └──────────┘           │          │    │
-│   │   └─────────────────────────────────────────────────────┘          │    │
-│   └─────────────────────────────────────────────────────────────────────┘    │
-│                                  │                                           │
-├──────────────────────────────────┼───────────────────────────────────────────┤
-│                         EXTERNAL SERVICES                                    │
-│                                                                              │
-│   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐                    │
-│   │   Ollama     │   │  LM Studio   │   │  Claude API  │                    │
-│   │  (Primary)   │   │ (Secondary)  │   │   (BYOK)     │                    │
-│   │ localhost:   │   │ localhost:   │   │   Cloud      │                    │
-│   │   11434      │   │   1234       │   │  (Optional)  │                    │
-│   └──────────────┘   └──────────────┘   └──────────────┘                    │
-│                                                                              │
-│   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐                    │
-│   │   OpenAI     │   │   Gemini     │   │  OpenAI-     │                    │
-│   │  (ChatGPT)   │   │  (Google)    │   │ Compatible   │                    │
-│   │   (BYOK)     │   │   (BYOK)     │   │  (Custom)    │                    │
-│   │   Cloud      │   │   Cloud      │   │  Any URL     │                    │
-│   └──────────────┘   └──────────────┘   └──────────────┘                    │
-│                                                                              │
-└──────────────────────────────────────────────────────────────────────────────┘
+TaxLogic.local
+├── Renderer (React 18 + TypeScript + TailwindCSS)
+│   ├── Pages: Onboarding, Interview, Documents, Review, Export, Settings
+│   ├── State: Zustand mit localStorage-Persistenz
+│   └── IPC Bridge: Typisierte Preload-API (30+ Kanaele)
+│
+├── Main Process (Electron + Node.js)
+│   ├── IPC Handlers: Alle Backend-Operationen
+│   ├── Services:
+│   │   ├── llmService     - 6 Provider-Adapter (Ollama/LM Studio/Claude/OpenAI/Gemini/OpenAI-Compatible)
+│   │   ├── dbService      - SQLite via sql.js (reines JS, keine nativen Abhaengigkeiten)
+│   │   ├── ocrService     - Tesseract.js OCR
+│   │   ├── formGenerator  - PDFKit L1/L1ab/L1k Generierung
+│   │   └── guideGenerator - Markdown/PDF Filing-Guides
+│   ├── Agents:
+│   │   ├── interviewerAgent       - 25-Fragen Steuer-Interview
+│   │   ├── documentInspectorAgent - OCR + Klassifizierung + Analyse
+│   │   └── analyzerAgent          - Steuerberechnungen & Optimierung
+│   └── RAG:
+│       ├── embeddings    - Ollama nomic-embed-text (768-dim Vektoren)
+│       ├── knowledgeBase - In-Memory Vektorspeicher mit oesterreichischem Steuerrecht
+│       └── retriever     - Semantische Suche mit Quellenangaben
+│
+└── Extern:
+    ├── Ollama (localhost:11434) - Primaeres LLM + Embeddings
+    ├── LM Studio (localhost:1234) - Alternatives lokales LLM
+    └── Cloud APIs (optionales BYOK) - Claude, OpenAI, Gemini
 ```
 
 ---
@@ -72,307 +45,154 @@ TaxLogic.local ist eine Electron-basierte Desktop-Anwendung für die KI-gestütz
 | Komponente | Beschreibung |
 |------------|--------------|
 | **Pages** | 6 Hauptseiten (Onboarding, Interview, Documents, Review, Export, Settings) |
-| **Components** | Wiederverwendbare UI-Komponenten (Layout, Sidebar, StatusBar) |
-| **Stores** | Zustand für globales State Management |
-| **Styles** | TailwindCSS für Styling |
+| **Components** | Layout, Sidebar, StatusBar, NotificationContainer |
+| **Stores** | Zustand mit `persist` Middleware (localStorage) |
+| **Router** | React Router mit Onboarding-Redirect |
 
 #### State Management (Zustand)
 
-```typescript
-interface AppStore {
-  // Navigation
-  currentPage: string;
-  setCurrentPage: (page: string) => void;
-  
-  // LLM Status
-  llmStatus: 'connected' | 'disconnected' | 'checking';
-  setLlmStatus: (status: 'connected' | 'disconnected' | 'checking') => void;
-  
-  // User
-  userProfile: UserProfile | null;
-  setUserProfile: (profile: UserProfile) => void;
-  
-  // Interview
-  interviewState: InterviewState;
-  setInterviewState: (state: InterviewState) => void;
-  
-  // Documents
-  documents: Document[];
-  addDocument: (doc: Document) => void;
-}
-```
+- `isOnboarded` - Onboarding abgeschlossen?
+- `userProfile` - Beruf, Beschaeftigungsstatus
+- `llmStatus` - Verbindungsstatus aller Provider
+- `settings` - LLM-URL, Modell, Theme, Sprache
+- `currentStep` - Aktueller Workflow-Schritt
 
 ---
 
 ### 2. IPC Bridge
 
-**Technologie:** Electron IPC (Inter-Process Communication)
+**Technologie:** Electron IPC mit typisiertem Preload-Script
 
-Der IPC Bridge ermöglicht sichere Kommunikation zwischen Renderer und Main Process.
+30+ IPC-Kanaele fuer:
+- Window Management (minimize, maximize, close)
+- LLM Operations (checkStatus, getModels, query)
+- Interview (start, continue, getProfile, save, load)
+- Documents (upload, process, organize, getManifest)
+- Analysis (calculate, getResults, optimize)
+- Forms (generate, preview, export)
+- Guide (generate, export)
+- File System (selectDirectory, selectFiles, openPath)
 
-#### Preload Script (`src/main/preload.ts`)
+#### Wichtige technische Entscheidungen
 
-```typescript
-contextBridge.exposeInMainWorld('electronAPI', {
-  // LLM
-  llm: {
-    checkConnection: () => ipcRenderer.invoke('llm:check-connection'),
-    chat: (messages: Message[]) => ipcRenderer.invoke('llm:chat', messages),
-    setProvider: (provider: LLMProvider) => ipcRenderer.invoke('llm:set-provider', provider)
-  },
-  
-  // Database
-  db: {
-    saveProfile: (profile: UserProfile) => ipcRenderer.invoke('db:save-profile', profile),
-    getProfile: () => ipcRenderer.invoke('db:get-profile')
-  },
-  
-  // OCR
-  ocr: {
-    processImage: (imagePath: string) => ipcRenderer.invoke('ocr:process-image', imagePath)
-  },
-  
-  // ... weitere APIs
-});
-```
+| Entscheidung | Grund |
+|--------------|-------|
+| `sql.js` als webpack external | CommonJS `module.exports` bricht im Webpack-Bundle |
+| Lazy `getDefaultConfig()` | dotenv laedt nach Webpack-Import-Hoisting |
+| Non-blocking KnowledgeBase Init | App funktioniert auch ohne Embedding-Modell |
+| EPIPE Error Handling | Verhindert Crash-Loops bei Squirrel-Update |
+| Renderer Webpack-Rule-Filterung | `@vercel/webpack-asset-relocator-loader` injiziert `__dirname` in Renderer |
+| Interview Response als Objekt | IPC gibt `{message, question, isComplete}` zurueck, Renderer extrahiert String |
 
 ---
 
-### 3. Main Process (Backend)
-
-**Technologie:** Node.js + TypeScript
-
-#### Services Layer
+### 3. Services Layer
 
 | Service | Datei | Beschreibung |
 |---------|-------|--------------|
-| **LLM Service** | `llmService.ts` | Unified Interface für Ollama, LM Studio, Claude |
-| **Database Service** | `dbService.ts` | SQLite Datenbank mit sql.js |
-| **OCR Service** | `ocrService.ts` | Tesseract.js für Texterkennung |
-| **Document Organizer** | `documentOrganizer.ts` | KI-gestützte Kategorisierung |
-| **Form Generator** | `formGenerator.ts` | PDF-Generierung für L1, L1ab, L1k |
-| **Guide Generator** | `guideGenerator.ts` | Personalisierte Anleitungen |
+| **LLM Service** | `llmService.ts` | 6 Provider: Ollama, LM Studio, Claude, OpenAI, Gemini, OpenAI-Compatible |
+| **Database Service** | `dbService.ts` | SQLite mit sql.js (WASM, keine nativen Deps) |
+| **OCR Service** | `ocrService.ts` | Tesseract.js fuer Texterkennung aus Bildern |
+| **Document Organizer** | `documentOrganizer.ts` | KI-gestuetzte Ausgaben-Kategorisierung |
+| **Form Generator** | `formGenerator.ts` | PDF-Generierung fuer L1, L1ab, L1k mit PDFKit |
+| **Guide Generator** | `guideGenerator.ts` | Markdown + PDF Schritt-fuer-Schritt Anleitungen |
 
-#### Multi-Agent System
+---
+
+### 4. Multi-Agent System
 
 | Agent | Datei | Aufgabe |
 |-------|-------|---------|
-| **Interviewer** | `interviewerAgent.ts` | Führt das Steuer-Interview |
-| **Document Inspector** | `documentInspectorAgent.ts` | Analysiert hochgeladene Belege |
-| **Analyzer** | `analyzerAgent.ts` | Berechnet Steuern und Optimierungen |
-| **Report Writer** | `reportWriterAgent.ts` | Erstellt finale Berichte |
-
-#### RAG System (Retrieval Augmented Generation)
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      RAG System                              │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│   ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    │
-│   │  Embeddings │ →  │ Knowledge   │ →  │  Retriever  │    │
-│   │   Service   │    │    Base     │    │             │    │
-│   └─────────────┘    └─────────────┘    └─────────────┘    │
-│                                                              │
-│   Ollama              In-Memory          Semantic Search    │
-│   nomic-embed-text    Vector Store       + Citations        │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
-```
+| **Interviewer** | `interviewerAgent.ts` | 25 Fragen mit Validierung, Uebergangsnachrichten |
+| **Document Inspector** | `documentInspectorAgent.ts` | OCR + Klassifizierung + Betragserkennung |
+| **Analyzer** | `analyzerAgent.ts` | Oesterreichische Steuerberechnung, progressive Steuersaetze |
 
 ---
 
-### 4. LangGraph Workflow
-
-**Technologie:** LangGraph (LangChain)
-
-Der Steuererklärungs-Workflow ist als 6-Node Graph implementiert:
+### 5. RAG System
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Tax Filing Workflow                       │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│   [START]                                                    │
-│      │                                                       │
-│      ▼                                                       │
-│   ┌──────────────┐                                          │
-│   │  Interview   │ ─── Fragen zu Einkommen, Pendeln, etc.   │
-│   └──────┬───────┘                                          │
-│          │                                                   │
-│          ▼                                                   │
-│   ┌──────────────┐                                          │
-│   │  Documents   │ ─── OCR + Kategorisierung               │
-│   └──────┬───────┘                                          │
-│          │                                                   │
-│          ▼                                                   │
-│   ┌──────────────┐                                          │
-│   │   Review     │ ─── Datenüberprüfung                    │
-│   └──────┬───────┘                                          │
-│          │                                                   │
-│          ▼                                                   │
-│   ┌──────────────┐                                          │
-│   │  Analysis    │ ─── Steuerberechnung                    │
-│   └──────┬───────┘                                          │
-│          │                                                   │
-│          ▼                                                   │
-│   ┌──────────────┐                                          │
-│   │    Forms     │ ─── L1, L1ab, L1k Generierung           │
-│   └──────┬───────┘                                          │
-│          │                                                   │
-│          ▼                                                   │
-│   ┌──────────────┐                                          │
-│   │    Guide     │ ─── FinanzOnline Anleitung              │
-│   └──────┬───────┘                                          │
-│          │                                                   │
-│          ▼                                                   │
-│      [END]                                                   │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
+Dokument-Einspeisung:
+  8 Steuerrecht-Dokumente → Chunking → nomic-embed-text → 768-dim Vektoren → In-Memory Store
+
+Abfrage:
+  User-Frage → Embedding → Cosine Similarity → Top-K Chunks → LLM mit Kontext
 ```
+
+**Wissensbasis-Dokumente:**
+- Werbungskosten - Grundlagen
+- Pendlerpauschale - Berechnung
+- Home Office Pauschale
+- Sonderausgaben
+- Familienbonus Plus
+- Aussergewoehnliche Belastungen - Krankheitskosten
+- FinanzOnline - Arbeitnehmerveranlagung
+- Formulare L1, L1ab, L1k
 
 ---
 
-## Datenfluss
+### 6. LangGraph Workflow
 
-### 1. Interview Flow
-
-```
-User Input → React Form → IPC → Interviewer Agent → LLM → Response → IPC → React State
-```
-
-### 2. Document Processing Flow
+6-Node Graph fuer den Steuererklaerungsprozess:
 
 ```
-File Drop → React → IPC → OCR Service → Document Inspector → Document Organizer → Database
-```
-
-### 3. Export Flow
-
-```
-Review → IPC → Analyzer Agent → Form Generator → PDF → File System → IPC → Download Dialog
+[START] → Interview → Documents → Review → Analysis → Forms → Guide → [END]
 ```
 
 ---
 
 ## Datenbank Schema
 
-**Technologie:** SQLite (sql.js - WASM)
+**Technologie:** SQLite (sql.js WASM)
 
-### Tabellen
+Tabellen: `users`, `interviews`, `documents`, `forms`, `calculations`
 
-```sql
--- Benutzer
-CREATE TABLE users (
-  id TEXT PRIMARY KEY,
-  email TEXT,
-  first_name TEXT,
-  last_name TEXT,
-  tax_id TEXT,
-  created_at TEXT,
-  updated_at TEXT
-);
+---
 
--- Interviews
-CREATE TABLE interviews (
-  id TEXT PRIMARY KEY,
-  user_id TEXT REFERENCES users(id),
-  tax_year INTEGER,
-  status TEXT,
-  data TEXT, -- JSON
-  created_at TEXT,
-  updated_at TEXT
-);
+## Build-System
 
--- Dokumente
-CREATE TABLE documents (
-  id TEXT PRIMARY KEY,
-  user_id TEXT REFERENCES users(id),
-  interview_id TEXT REFERENCES interviews(id),
-  file_name TEXT,
-  file_path TEXT,
-  category TEXT,
-  ocr_text TEXT,
-  extracted_data TEXT, -- JSON
-  confidence REAL,
-  created_at TEXT
-);
+| Konfiguration | Datei | Besonderheiten |
+|---------------|-------|----------------|
+| Main Webpack | `webpack.main.config.ts` | Externals: sql.js, better-sqlite3, sharp |
+| Renderer Webpack | `webpack.renderer.config.ts` | Filtert node-loader und asset-relocator-loader |
+| Shared Rules | `webpack.rules.ts` | TypeScript, node-loader, asset-relocator |
+| Forge Config | `forge.config.ts` | Squirrel mit Shortcuts, Ports 3456/9876 |
 
--- Generierte Formulare
-CREATE TABLE forms (
-  id TEXT PRIMARY KEY,
-  user_id TEXT REFERENCES users(id),
-  interview_id TEXT REFERENCES interviews(id),
-  form_type TEXT, -- L1, L1ab, L1k
-  file_path TEXT,
-  data TEXT, -- JSON
-  created_at TEXT
-);
-```
+### Installer (Squirrel Windows)
+
+- Automatische Desktop- und Startmenue-Verknuepfungen
+- Erfolgsmeldung nach Installation
+- Automatische Shortcut-Entfernung bei Deinstallation
+- Installationsort: `%LOCALAPPDATA%\TaxLogic`
 
 ---
 
 ## Sicherheit
 
-### Lokale Verarbeitung
-
-- **Kein Cloud-Zwang:** Alle Daten bleiben auf dem Gerät
-- **Optionales BYOK:** Bring Your Own Key für Claude API
-- **Keine Telemetrie:** Kein Tracking, keine Analytics
-
-### Electron Security
-
 - **Context Isolation:** Aktiviert
 - **Node Integration:** Deaktiviert im Renderer
-- **Preload Script:** Sichere API-Exposition über contextBridge
+- **Preload Script:** Sichere API-Exposition ueber contextBridge
 - **CSP:** Content Security Policy konfiguriert
-
----
-
-## Erweiterbarkeit
-
-### Neue LLM Provider
-
-1. Interface in `llmService.ts` erweitern
-2. Provider-spezifische Methode implementieren
-3. In `setProvider()` registrieren
-
-### Neue Agenten
-
-1. Neuen Agent in `src/backend/agents/` erstellen
-2. Agent-Interface implementieren
-3. In IPC Handlers registrieren
-4. Optional: In Workflow integrieren
-
-### Neue Formulare
-
-1. Formular-Definition in `formGenerator.ts` erweitern
-2. PDF-Layout implementieren
-3. IPC Handler hinzufügen
+- **Keine Telemetrie:** Kein Tracking, keine Analytics
 
 ---
 
 ## Deployment
 
-### Development
+### Ports
 
-```bash
-npm run dev
-```
+| Port | Service |
+|------|---------|
+| 3456 | Webpack Dev Server |
+| 9876 | Webpack Logger |
+| 11434 | Ollama API |
 
-### Production Build
+### Unterstuetzte Plattformen
 
-```bash
-npm run package  # Unverpackte App
-npm run make     # Installer (DMG, EXE, DEB)
-```
-
-### Unterstützte Plattformen
-
-- **Windows:** NSIS Installer (.exe)
+- **Windows:** Squirrel Installer (.exe) mit Desktop-Shortcuts
 - **macOS:** DMG Image (.dmg)
-- **Linux:** DEB, RPM, AppImage
+- **Linux:** DEB, RPM
 
 ---
 
-*Letzte Aktualisierung: 2026-02-05*
+*Letzte Aktualisierung: 2026-02-11*

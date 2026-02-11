@@ -49,7 +49,9 @@ Before you begin, ensure you have:
 - Node.js >= 22.0.0
 - npm >= 10.0.0
 - Git
-- Ollama or LM Studio (for local LLM testing)
+- Docker Desktop (for Ollama)
+- Ollama in Docker (`docker run -d --name ollama -p 11434:11434 -v ollama_data:/root/.ollama ollama/ollama`)
+- Required models: `llama3.1:8b` and `nomic-embed-text`
 
 ### Fork and Clone
 
@@ -60,7 +62,7 @@ git clone https://github.com/YOUR_USERNAME/taxlogic-local.git
 cd taxlogic-local
 
 # Add upstream remote
-git remote add upstream https://github.com/ORIGINAL_OWNER/taxlogic-local.git
+git remote add upstream https://github.com/LEEI1337/taxlogic-local.git
 ```
 
 ---
@@ -80,10 +82,18 @@ cp .env.example .env.local
 # Edit .env.local with your configuration
 ```
 
-### 3. Start Development Server
+### 3. Start Ollama in Docker
 
 ```bash
-npm run dev
+docker run -d --name ollama -p 11434:11434 -v ollama_data:/root/.ollama --restart unless-stopped ollama/ollama
+docker exec ollama ollama pull llama3.1:8b
+docker exec ollama ollama pull nomic-embed-text
+```
+
+### 4. Start Development Server
+
+```bash
+npm start
 ```
 
 ### 4. Run Tests

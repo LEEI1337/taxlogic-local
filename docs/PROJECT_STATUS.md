@@ -1,334 +1,118 @@
 # TaxLogic.local - Projektstatus
 
-**Stand:** 2026-02-05  
+**Stand:** 2026-02-11
 **Version:** 1.0.0-alpha
 
 ---
 
-## 📊 Executive Summary
+## Executive Summary
 
 | Bereich | Status | Details |
 |---------|--------|---------|
-| **Phase 1 (MVP)** | ✅ Abgeschlossen | Electron + React Grundstruktur |
-| **Phase 2 (Core Features)** | ✅ Abgeschlossen | Backend-Services, Agents, RAG |
-| **Build & Kompilierung** | ✅ Funktioniert | TypeScript kompiliert fehlerfrei |
-| **Tests** | ⚠️ Fehlt | Testinfrastruktur vorhanden, aber keine Tests |
-| **Linting** | ✅ Konfiguriert | ESLint mit TypeScript und React Regeln |
-| **Dokumentation** | ✅ Enterprise-Grade | Vollständig mit Standards, Governance, Security |
-| **GitHub Templates** | ✅ Vorhanden | Issue Templates, PR Template |
-| **Sicherheit** | ⚠️ Überprüfen | 37 npm audit Warnungen (dev-dependencies) |
+| **Phase 1 (MVP)** | Abgeschlossen | Electron + React Grundstruktur |
+| **Phase 2 (Core Features)** | Abgeschlossen | Backend-Services, Agents, RAG |
+| **Build & Installer** | Funktioniert | Squirrel mit Desktop-Shortcuts |
+| **Tests** | 163 Tests | Unit Tests fuer alle Services |
+| **Linting** | Konfiguriert | ESLint mit TypeScript und React |
+| **Dokumentation** | Vollstaendig | README, Setup, Architektur, User Guide, API |
+| **Docker Ollama** | Dokumentiert | Docker-Anleitung mit Embedding-Modell |
 
 ---
 
-## 🏗️ Was ist fertig?
+## Was ist fertig?
 
-### Phase 1 - MVP ✅
+### Phase 1 - MVP
 
 - [x] **Electron + React Foundation** - Cross-platform Desktop App
-- [x] **Basic UI Components** - 6 vollständige Seiten
-  - OnboardingPage.tsx
-  - InterviewPage.tsx  
-  - DocumentUploadPage.tsx
-  - ReviewPage.tsx
-  - ExportPage.tsx
-  - SettingsPage.tsx
-- [x] **Zustand State Management** - Globaler App-Zustand
-- [x] **LLM Service** - Unterstützt Ollama, LM Studio, Claude (BYOK)
-- [x] **SQLite Database** - sql.js Integration
+- [x] **6 UI-Seiten** - Onboarding, Interview, Documents, Review, Export, Settings
+- [x] **Zustand State Management** - Mit localStorage-Persistenz
+- [x] **LLM Service** - 6 Provider (Ollama, LM Studio, Claude, OpenAI, Gemini, OpenAI-Compatible)
+- [x] **SQLite Database** - sql.js (reines JS, keine nativen Abhaengigkeiten)
 
-### Phase 2 - Core Features ✅
+### Phase 2 - Core Features
 
-- [x] **OCR Service** - Tesseract.js für Belege
-- [x] **Document Organizer** - KI-gestützte Kategorisierung
-- [x] **Form Generator** - L1, L1ab, L1k PDF-Generierung
-- [x] **Guide Generator** - Personalisierte Schritt-für-Schritt Anleitungen
-- [x] **LangGraph Workflow** - 6-Node Steuererklärungs-Prozess
+- [x] **OCR Service** - Tesseract.js fuer Belege
+- [x] **Document Organizer** - KI-gestuetzte Kategorisierung
+- [x] **Form Generator** - L1, L1ab, L1k PDF-Generierung mit PDFKit
+- [x] **Guide Generator** - Personalisierte Schritt-fuer-Schritt Anleitungen
+- [x] **LangGraph Workflow** - 6-Node Steuererklaerungsprozess
 - [x] **Multi-Agent System**
-  - Interviewer Agent
-  - Document Inspector Agent
-  - Analyzer Agent
-  - Report Writer Agent
-- [x] **RAG System** - Wissensbasis mit österreichischem Steuerrecht
-  - Embeddings (Ollama nomic-embed-text)
-  - Vector Knowledge Base
-  - Semantic Retriever mit Zitaten
-- [x] **IPC Integration** - Alle Services mit Frontend verbunden
+  - Interviewer Agent (25 Fragen mit Validierung)
+  - Document Inspector Agent (OCR + Klassifizierung)
+  - Analyzer Agent (Oesterreichische Steuerberechnung)
+- [x] **RAG System** - Wissensbasis mit 8 Steuerrecht-Dokumenten
+  - Embeddings (Ollama nomic-embed-text, 768-dim)
+  - In-Memory Vector Store
+  - Semantic Retriever mit Quellenangaben
+- [x] **IPC Integration** - 30+ Kanaele, typisiertes Preload
+- [x] **Onboarding Wizard** - 4-Schritt Einrichtungsassistent
+
+### Bug-Fixes & Stabilisierung
+
+- [x] **17 kritische Bugs behoben** (Commit f3b006b)
+- [x] **Blank Page Fix** - webpack-asset-relocator-loader aus Renderer gefiltert
+- [x] **EPIPE Crash-Loop** - Error Handler auf PDF-Streams + Logger
+- [x] **sql.js webpack external** - CommonJS module.exports Fehler
+- [x] **dotenv Timing** - Lazy Config statt Module-Init-Time
+- [x] **Interview Response Types** - IPC gibt Objekt zurueck, nicht String
+- [x] **ReviewPage defensive** - .map() auf undefined verhindert
+- [x] **KnowledgeBase non-blocking** - App startet ohne Embedding-Modell
+- [x] **Squirrel Installer** - Desktop/Startmenue-Shortcuts + Install-Dialog
 
 ---
 
-## 📂 Implementierte Dateien
-
-### Backend Services (`src/backend/services/`)
-| Datei | Beschreibung | Status |
-|-------|--------------|--------|
-| `llmService.ts` | Unified LLM Interface (Ollama/LM Studio/Claude) | ✅ |
-| `dbService.ts` | SQLite Datenbank mit sql.js | ✅ |
-| `ocrService.ts` | Tesseract.js OCR Verarbeitung | ✅ |
-| `documentOrganizer.ts` | KI-gestützte Dokumentklassifizierung | ✅ |
-| `formGenerator.ts` | L1/L1ab/L1k PDF-Generierung | ✅ |
-| `guideGenerator.ts` | Schritt-für-Schritt Guide Generator | ✅ |
-
-### Backend Agents (`src/backend/agents/`)
-| Datei | Beschreibung | Status |
-|-------|--------------|--------|
-| `interviewerAgent.ts` | Intelligente Steuer-Interview Führung | ✅ |
-| `documentInspectorAgent.ts` | OCR + Klassifizierung + Analyse | ✅ |
-| `analyzerAgent.ts` | Österreichische Steuerberechnungen | ✅ |
-| `reportWriterAgent.ts` | Umfassende Berichtserstellung | ✅ |
-
-### RAG System (`src/backend/rag/`)
-| Datei | Beschreibung | Status |
-|-------|--------------|--------|
-| `embeddings.ts` | Ollama Embeddings Service | ✅ |
-| `knowledgeBase.ts` | Vector Store mit Datei-Persistenz | ✅ |
-| `retriever.ts` | Semantische Suche mit Quellenangaben | ✅ |
-
-### Workflows (`src/backend/workflows/`)
-| Datei | Beschreibung | Status |
-|-------|--------------|--------|
-| `taxWorkflow.ts` | LangGraph 6-Node Workflow | ✅ |
-
-### Frontend Pages (`src/renderer/pages/`)
-| Datei | Beschreibung | Status |
-|-------|--------------|--------|
-| `OnboardingPage.tsx` | LLM-Verbindungsprüfung, Profil-Setup | ✅ |
-| `InterviewPage.tsx` | KI-gesteuertes Steuer-Interview | ✅ |
-| `DocumentUploadPage.tsx` | Drag & Drop Beleg-Upload | ✅ |
-| `ReviewPage.tsx` | Überprüfung aller Daten | ✅ |
-| `ExportPage.tsx` | PDF-Export und Formulare | ✅ |
-| `SettingsPage.tsx` | App-Einstellungen | ✅ |
-
----
-
-## ⚠️ Offene Punkte
-
-### Kritisch (Sollte behoben werden)
-
-1. **ESLint Konfiguration**
-   - ✅ ESLint Config erstellt (`.eslintrc.json`)
-   - ✅ Alle Errors gefixt
-   - Einige Warnings (Import-Reihenfolge) - niedrige Priorität
-
-2. **Tests**
-   - ✅ Vitest ist konfiguriert (`npm test` läuft)
-   - ✅ Unit Tests für AnalyzerAgent (21 Tests)
-   - ⚠️ Weitere Unit Tests für andere Services empfohlen
-   - ⚠️ E2E Tests noch ausstehend
-
-### Mittel (Sollte geplant werden)
-
-3. **npm audit Warnungen (37 Vulnerabilities)**
-   - Meist in dev-dependencies (electron-forge, webpack)
-   - Nicht kritisch für Endanwender
-   - Empfehlung: `npm audit fix` für nicht-breaking Fixes
-
-4. **PDF OCR nicht implementiert**
-   - `processPDF` in ocrService.ts wirft Error
-   - Empfehlung: PDF-to-Image Konvertierung hinzufügen
-
-5. **Qdrant Integration ausstehend**
-   - Aktuell: In-Memory Vector Store
-   - Geplant: Qdrant Docker Container
-
-### Nice-to-Have (Phase 3)
-
-6. **FinanzOnline API Integration**
-7. **Multi-Language Support (DE/EN)**
-8. **Cloud Backup (optional, verschlüsselt)**
-9. **Mobile Companion App**
-10. **Voice Input für Interviews**
-
----
-
-## 🧪 Test-Status
-
-### Aktuelle Situation
+## Test-Status
 
 ```
-Test Framework: Vitest 1.6.1 ✅ (konfiguriert)
-Test Files: 1 ✅ (analyzerAgent.test.ts - 21 Tests)
-E2E Framework: Playwright ✅ (konfiguriert)
-E2E Tests: 0 ❌ (keine Tests vorhanden)
+Test Framework: Vitest
+Test Files: 163 Tests (alle bestanden)
+E2E Framework: Playwright (konfiguriert)
 ```
 
-### Vorhandene Tests
+### Unit Tests
 
-#### Unit Tests
-
-| Datei | Tests | Status |
-|-------|-------|--------|
-| `analyzerAgent.test.ts` | 21 Tests | ✅ Bestanden |
-
-**Getestete Funktionen:**
-- Steuerberechnung (progressiv)
-- Home-Office-Abzüge
-- Pendlerpauschale (klein/groß)
-- Kirchensteuer (mit Cap)
-- Absetzbeträge (Verkehrs-, Familien-, Alleinerzieher-)
-- Werbungskosten-Pauschale
-- Krankheitskosten mit Selbstbehalt
-- Empfehlungen und Warnungen
-
-### Empfohlene weitere Tests
-
-#### Unit Tests (Priorität: Hoch)
-
-| Service | Empfohlene Tests |
-|---------|------------------|
-| `llmService` | Connection check, Model switching, Error handling |
-| `dbService` | CRUD operations, Schema validation |
-| `formGenerator` | PDF-Generierung, Feldmapping |
-| `ocrService` | Text-Extraktion, Confidence-Werte |
-
-#### Integration Tests (Priorität: Mittel)
-
-| Flow | Beschreibung |
-|------|--------------|
-| Interview → Analysis | Vollständiger Interview-Flow |
-| Document → Category | OCR → Klassifizierung Pipeline |
-| RAG Query | Embeddings → Search → Response |
-
-#### E2E Tests (Priorität: Niedrig)
-
-| Test | Beschreibung |
-|------|--------------|
-| Onboarding | LLM-Verbindung, Profil-Setup |
-| Full Workflow | Vom Interview bis zum Export |
+| Bereich | Tests | Status |
+|---------|-------|--------|
+| Analyzer Agent | Steuerberechnung, Deductions, Pendler | Bestanden |
+| LLM Service | Connection, Provider-Switching | Bestanden |
+| DB Service | CRUD, Schema | Bestanden |
+| Form Generator | PDF, Feldmapping | Bestanden |
+| OCR Service | Texterkennung | Bestanden |
+| Interview Agent | Fragen, Validierung | Bestanden |
 
 ---
 
-## 📚 Dokumentation
+## Bekannte Einschraenkungen
 
-### Vorhandene Dokumentation
-
-| Dokument | Pfad | Status |
-|----------|------|--------|
-| README | `/README.md` | ✅ Umfassend |
-| Architektur | `/docs/ARCHITECTURE.md` | ✅ Vollständig |
-| Setup Guide | `/docs/SETUP.md` | ✅ Vollständig |
-| User Guide | `/docs/USER_GUIDE.md` | ✅ Vollständig |
-| API Referenz | `/docs/API.md` | ✅ Vollständig |
-| Contributing | `/CONTRIBUTING.md` | ✅ Vollständig |
-| Code of Conduct | `/CODE_OF_CONDUCT.md` | ✅ Vollständig |
-| Security Policy | `/SECURITY.md` | ✅ Vollständig |
-| Changelog | `/CHANGELOG.md` | ✅ Vollständig |
-| Coding Standards | `/docs/CODING_STANDARDS.md` | ✅ Vollständig |
-| Governance | `/docs/GOVERNANCE.md` | ✅ Vollständig |
-| Phase 2 Report | `/docs/PHASE2_TEST_REPORT.md` | ✅ Vorhanden |
-| Projekt Status | `/docs/PROJECT_STATUS.md` | ✅ Dieses Dokument |
-
-### GitHub Templates
-
-| Template | Pfad | Status |
-|----------|------|--------|
-| Bug Report | `/.github/ISSUE_TEMPLATE/bug_report.md` | ✅ Vorhanden |
-| Feature Request | `/.github/ISSUE_TEMPLATE/feature_request.md` | ✅ Vorhanden |
-| Documentation | `/.github/ISSUE_TEMPLATE/documentation.md` | ✅ Vorhanden |
-| Pull Request | `/.github/PULL_REQUEST_TEMPLATE.md` | ✅ Vorhanden |
+1. **Squirrel Installer** - Kein Ordnerwahl-Dialog (Squirrel-Limitation)
+2. **PDF OCR** - Begrenzt (nur Text-PDFs, kein Image-basiertes OCR)
+3. **Embedding-Modell erforderlich** - nomic-embed-text muss separat installiert werden
+4. **Nur Deutsch** - Kein Multi-Language Support
 
 ---
 
-## 🔒 Sicherheitsanalyse
+## Naechste Schritte (Phase 3)
 
-### npm audit Zusammenfassung
-
-```
-Gesamt Vulnerabilities: 37
-- Low: 4
-- Moderate: 7  
-- High: 26
-```
-
-### Betroffene Pakete
-
-| Paket | Schweregrad | Typ | Aktion |
-|-------|-------------|-----|--------|
-| `webpack-dev-server` | Moderate | Dev | Update geplant |
-| `tmp` | High | Dev | Keine einfache Fix |
-| `glob` (deprecated) | Warning | Dev | Migration geplant |
-
-**Hinweis:** Alle Vulnerabilities sind in Development-Dependencies. Die Produktions-App ist nicht betroffen.
-
-### Empfehlungen
-
-1. `npm audit fix` für automatische Fixes
-2. `electron-forge` Update prüfen
-3. Regelmäßige Dependency-Updates
-
----
-
-## 🚀 Nächste Schritte
-
-### Sofort (Sprint 1)
-
-- [x] ESLint Konfiguration erstellen
-- [x] ESLint Errors fixen
-- [ ] Unit-Tests für `analyzerAgent` schreiben
-- [ ] Unit-Tests für `formGenerator` schreiben
-- [ ] `npm audit fix` ausführen
-
-### Kurzfristig (Sprint 2-3)
-
-- [ ] Integration Tests hinzufügen
-- [ ] PDF OCR implementieren
-- [x] Dokumentation vervollständigen (ARCHITECTURE.md, SETUP.md, API.md, USER_GUIDE.md)
-
-### Mittelfristig (Sprint 4-6)
-
+- [ ] FinanzOnline API Integration
+- [ ] Multi-Language Support (DE/EN)
+- [ ] Cloud Backup (optional, verschluesselt)
+- [ ] Qdrant Vector Database Integration
 - [ ] E2E Tests mit Playwright
-- [ ] Qdrant Integration
-- [ ] FinanzOnline API (Phase 3)
+- [ ] Custom Installer-Animation (loadingGif)
 
 ---
 
-## 📈 Metriken
+## Git-Historie
 
-### Code-Statistiken
-
-| Kategorie | Anzahl |
-|-----------|--------|
-| Backend Services | 6 Dateien |
-| Backend Agents | 4 Dateien |
-| RAG System | 3 Dateien |
-| Workflows | 1 Datei |
-| Frontend Pages | 6 Dateien |
-| **Gesamt TypeScript** | ~20 Dateien |
-
-### Dependencies
-
-| Typ | Anzahl |
-|-----|--------|
-| Production | 22 Pakete |
-| Development | 35 Pakete |
-| **Gesamt** | 1317 (inkl. transitive) |
+| Commit | Beschreibung |
+|--------|-------------|
+| `73fb7c6` | Squirrel Installer mit Desktop/Startmenue-Shortcuts |
+| `a9e6a55` | Interview-Crash Fix, sql.js external, README komplett ueberarbeitet |
+| `3986342` | Blank-Page, EPIPE-Crash, Mock-Daten, Onboarding ueberarbeitet |
+| `a44f998` | App-Icon, Menue-Events, CSP fuer Netzwerk-Ollama |
+| `57985ce` | Ollama Netzwerk-Support, dotenv, Live-Config-Sync |
+| `f3b006b` | 17 kritische Bugs, Testabdeckung auf 163 Tests |
 
 ---
 
-## ✅ Fazit
-
-**Das Projekt ist zu ca. 90% fertig für Phase 1+2.**
-
-### Was funktioniert:
-- ✅ Komplette Backend-Architektur
-- ✅ Alle UI-Seiten implementiert
-- ✅ LLM-Integration (Ollama, LM Studio, Claude, OpenAI, Gemini, OpenAI-Compatible)
-- ✅ OCR und Dokumentenverarbeitung
-- ✅ Steuerformular-Generierung
-- ✅ TypeScript kompiliert fehlerfrei
-- ✅ ESLint konfiguriert
-- ✅ Vollständige Dokumentation
-- ✅ Unit Tests für AnalyzerAgent (21 Tests)
-- ✅ Vitest konfiguriert
-
-### Was fehlt:
-- ⚠️ Weitere Unit Tests (llmService, dbService, formGenerator)
-- ⚠️ Integration Tests
-- ⚠️ E2E Tests mit Playwright
-- ⚠️ PDF OCR Funktion
-
-### Empfehlung:
-Das Projekt ist bereit für manuelle Tests mit einem lokal laufenden Ollama. Grundlegende Unit Tests sind vorhanden. Vor dem Production-Release sollten weitere Tests hinzugefügt werden.
-
----
-
-*Erstellt am 2026-02-05 | TaxLogic.local v1.0.0-alpha*
+*Erstellt am 2026-02-11 | TaxLogic.local v1.0.0-alpha*

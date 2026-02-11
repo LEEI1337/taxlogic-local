@@ -253,7 +253,7 @@ npm audit --json > security-report.json
 ### Aktuelle Situation / Current Status
 
 ```
-Letzte Prüfung: 2026-02-05
+Letzte Prüfung: 2026-02-11
 Kritische Vulnerabilities: 0 (Produktion)
 Hohe Vulnerabilities: 26 (nur Dev-Dependencies)
 ```
@@ -291,4 +291,4 @@ Für Sicherheitsfragen:
 
 ---
 
-*Letzte Aktualisierung / Last updated: 2026-02-05*
+*Letzte Aktualisierung / Last updated: 2026-02-11*

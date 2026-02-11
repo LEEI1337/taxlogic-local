@@ -8,9 +8,9 @@
 |------------|---------|-----------|
 | **Betriebssystem** | Windows 10, macOS 11, Ubuntu 20.04 | Windows 11, macOS 14, Ubuntu 22.04 |
 | **RAM** | 8 GB | 16 GB |
-| **Festplatte** | 2 GB frei | 10 GB frei (für LLM-Modelle) |
+| **Festplatte** | 2 GB frei | 10 GB frei (fuer LLM-Modelle) |
 | **CPU** | 4 Kerne | 8+ Kerne |
-| **GPU** | Nicht erforderlich | NVIDIA (für schnellere LLM) |
+| **GPU** | Nicht erforderlich | NVIDIA (fuer schnellere LLM) |
 
 ### Software
 
@@ -19,8 +19,9 @@
 Node.js >= 22.0.0
 npm >= 10.0.0
 
-# Empfohlen (für lokales LLM)
-Ollama - https://ollama.ai
+# Empfohlen (fuer lokales LLM)
+Ollama - https://ollama.com
+Docker - https://docker.com (fuer Ollama in Container)
 # oder
 LM Studio - https://lmstudio.ai
 ```
@@ -32,53 +33,70 @@ LM Studio - https://lmstudio.ai
 ### 1. Repository klonen
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/taxlogic-local.git
+git clone https://github.com/LEEI1337/taxlogic-local.git
 cd taxlogic-local
 ```
 
-### 2. Abhängigkeiten installieren
+### 2. Abhaengigkeiten installieren
 
 ```bash
 npm install
 ```
 
-Dies installiert:
-- Electron 28+
-- React 18
-- LangGraph/LangChain
-- Tesseract.js (OCR)
-- sql.js (SQLite)
-- PDFKit
-- und weitere...
-
-### 3. Umgebungsvariablen konfigurieren
+### 3. Umgebungsvariablen konfigurieren (Optional)
 
 ```bash
 cp .env.example .env.local
 ```
 
-Bearbeite `.env.local`:
+Standard-Konfiguration funktioniert direkt mit Ollama auf `localhost:11434`.
 
 ```bash
-# LLM Konfiguration
+# .env.local (optionale Anpassungen)
+
+# Ollama
 OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=mistral:latest
+OLLAMA_MODEL=llama3.1:8b
+
+# LM Studio
 LM_STUDIO_URL=http://localhost:1234
 
-# Optional: Claude API (BYOK)
+# Cloud Provider (Optional BYOK)
 ANTHROPIC_API_KEY=sk-ant-...
-
-# Datenbank
-DATABASE_PATH=./db/taxlogic.db
-
-# Features
-FEATURE_OCR_ENABLED=true
-FEATURE_RAG_ENABLED=true
+OPENAI_API_KEY=sk-...
+GEMINI_API_KEY=...
 ```
 
-### 4. Ollama einrichten (empfohlen)
+---
 
-#### Installation
+## Ollama einrichten
+
+### Option A: Docker (Empfohlen)
+
+```bash
+# Ollama Container starten
+docker run -d \
+  --name ollama \
+  -p 11434:11434 \
+  -v ollama_data:/root/.ollama \
+  --restart unless-stopped \
+  ollama/ollama
+
+# Hauptmodell herunterladen (~4.9 GB)
+docker exec ollama ollama pull llama3.1:8b
+
+# Embedding-Modell herunterladen (~274 MB) - WICHTIG fuer RAG!
+docker exec ollama ollama pull nomic-embed-text
+
+# Pruefen
+docker exec ollama ollama list
+```
+
+**Wichtig:** Das Embedding-Modell `nomic-embed-text` wird fuer die Wissensbasis (RAG) benoetigt. Ohne dieses Modell funktioniert die App trotzdem, aber Steuerrecht-Referenzen sind nicht verfuegbar.
+
+### Option B: Ollama Nativ
+
+**Windows:** Download von https://ollama.com/download
 
 **macOS:**
 ```bash
@@ -90,173 +108,50 @@ brew install ollama
 curl -fsSL https://ollama.ai/install.sh | sh
 ```
 
-**Windows:**
-Download von https://ollama.ai/download
-
-#### Modelle herunterladen
-
+Dann Modelle herunterladen:
 ```bash
-# Hauptmodell für Konversationen
-ollama pull mistral:latest
-
-# Embedding-Modell für RAG
-ollama pull nomic-embed-text:latest
+ollama pull llama3.1:8b
+ollama pull nomic-embed-text
+ollama list
 ```
 
-#### Ollama starten
+### Erforderliche Modelle
 
-```bash
-ollama serve
-```
-
-Überprüfe die Verbindung:
-```bash
-curl http://localhost:11434/api/tags
-```
-
-### 5. Anwendung starten
-
-```bash
-npm run dev
-```
+| Modell | Groesse | Zweck |
+|--------|---------|-------|
+| `llama3.1:8b` | ~4.9 GB | Hauptmodell fuer Interviews & Analyse |
+| `nomic-embed-text` | ~274 MB | Embeddings fuer RAG-Wissensbasis |
 
 ---
 
 ## Alternative: LM Studio
 
-Falls du LM Studio statt Ollama verwenden möchtest:
-
 1. **Download:** https://lmstudio.ai
-2. **Modell laden:** z.B. `mistral-7b-instruct`
-3. **Server starten:** "Local Server" Tab → "Start Server"
-4. **Port:** Standardmäßig `http://localhost:1234`
+2. **Modell laden:** z.B. `mistral-7b-instruct` oder `llama-3.1-8b`
+3. **Server starten:** "Local Server" Tab -> "Start Server"
+4. **Port:** Standardmaessig `http://localhost:1234`
 
-In der App:
-- Einstellungen → LLM Provider → "LM Studio" auswählen
+In der App: Einstellungen -> LLM Provider -> "LM Studio" auswaehlen
 
 ---
 
 ## Alternative: Claude API (BYOK)
 
-Für Cloud-basierte KI mit Claude:
-
 1. **API Key besorgen:** https://console.anthropic.com
 2. **In .env.local eintragen:** `ANTHROPIC_API_KEY=sk-ant-...`
-3. **In App aktivieren:** Einstellungen → LLM Provider → "Claude" auswählen
+3. **In App aktivieren:** Einstellungen -> LLM Provider -> "Claude" auswaehlen
 
-**Hinweis:** Daten werden an Anthropic gesendet. Nicht für sensible Steuerdaten empfohlen.
-
----
-
-## Verzeichnisstruktur nach Installation
-
-```
-taxlogic-local/
-├── node_modules/          # npm Pakete
-├── src/                   # Quellcode
-├── data/                  # Benutzerdaten
-│   ├── documents/         # Hochgeladene Belege
-│   ├── output/            # Generierte PDFs
-│   ├── models/            # Gecachte Modelle
-│   └── cache/             # Verarbeitungs-Cache
-├── db/                    # SQLite Datenbank
-├── .env.local             # Umgebungsvariablen
-└── package.json
-```
+> **Datenschutz-Warnung:** Bei Cloud-Providern werden Ihre Steuerdaten an externe Server gesendet. Fuer maximale Privatsphaere verwenden Sie Ollama oder LM Studio.
 
 ---
 
-## Erste Schritte
+## Anwendung starten
 
-### 1. Onboarding
-
-Beim ersten Start führt die App durch:
-- LLM-Verbindungstest
-- Profil-Erstellung
-- Basis-Einstellungen
-
-### 2. Interview starten
-
-- "Neues Interview" klicken
-- Steuerjahr auswählen
-- KI-geführte Fragen beantworten
-
-### 3. Belege hochladen
-
-- Drag & Drop oder Dateiauswahl
-- Automatische OCR-Erkennung
-- KI-Kategorisierung
-
-### 4. Überprüfung
-
-- Alle Daten prüfen
-- Änderungen vornehmen
-- Optimierungsvorschläge beachten
-
-### 5. Export
-
-- L1/L1ab/L1k Formulare generieren
-- Schritt-für-Schritt Anleitung erhalten
-- Für FinanzOnline vorbereiten
-
----
-
-## Fehlerbehebung
-
-### Problem: "Ollama nicht erreichbar"
+### Entwicklungsmodus
 
 ```bash
-# Prüfe ob Ollama läuft
-curl http://localhost:11434/api/tags
-
-# Falls nicht, starte Ollama
-ollama serve
+npm run dev
 ```
-
-### Problem: "Modell nicht gefunden"
-
-```bash
-# Liste installierte Modelle
-ollama list
-
-# Installiere fehlendes Modell
-ollama pull mistral:latest
-```
-
-### Problem: "npm install schlägt fehl"
-
-```bash
-# Node Version prüfen
-node --version  # >= 22.0.0 erforderlich
-
-# npm Cache leeren
-npm cache clean --force
-
-# Erneut installieren
-rm -rf node_modules package-lock.json
-npm install
-```
-
-### Problem: "Electron startet nicht"
-
-```bash
-# Native Module neu bauen
-npm run postinstall
-# oder
-npx electron-rebuild
-```
-
----
-
-## Build für Produktion
-
-### Package (unverpackt)
-
-```bash
-npm run package
-```
-
-Ergebnis in `out/`
 
 ### Installer erstellen
 
@@ -264,19 +159,90 @@ Ergebnis in `out/`
 npm run make
 ```
 
-Ergebnis in `out/make/`:
-- Windows: `.exe` (Squirrel)
-- macOS: `.dmg`
-- Linux: `.deb`, `.rpm`
+Die Setup-EXE wird erstellt unter: `out/make/squirrel.windows/x64/TaxLogic-1.0.0-alpha Setup.exe`
+
+Bei Installation werden automatisch Desktop- und Startmenue-Verknuepfungen erstellt.
 
 ---
 
-## Nächste Schritte
+## Erste Schritte
 
-- [Benutzerhandbuch](USER_GUIDE.md) lesen
-- [API Dokumentation](API.md) für Entwickler
-- [Architektur](ARCHITECTURE.md) für tieferes Verständnis
+### 1. Onboarding
+
+Beim ersten Start fuehrt der Einrichtungsassistent durch:
+- **LLM Setup** - Ollama URL konfigurieren, Modell auswaehlen, Verbindung testen
+- **Profil** - Beruf und Beschaeftigungsstatus (Angestellt/Selbststaendig)
+- **Datenschutz-Hinweis** - Warnung bei Cloud-Providern
+
+### 2. Interview starten
+
+- KI-gefuehrte Fragen beantworten
+- 25 Fragen zu Einkommen, Pendeln, Home-Office, Ausgaben etc.
+
+### 3. Belege hochladen
+
+- Drag & Drop oder Dateiauswahl
+- Automatische OCR-Erkennung
+- KI-Kategorisierung
+
+### 4. Ueberpruefen & Exportieren
+
+- Steuerberechnung pruefen
+- L1/L1ab/L1k Formulare generieren
+- Schritt-fuer-Schritt Anleitung fuer FinanzOnline
 
 ---
 
-*Letzte Aktualisierung: 2026-02-05*
+## Fehlerbehebung
+
+### Ollama nicht erreichbar
+
+```bash
+# Docker
+docker ps | grep ollama
+docker exec ollama ollama list
+
+# Nativ
+curl http://localhost:11434/api/tags
+```
+
+### Wissensbasis-Fehler (Embedding model missing)
+
+```bash
+# Docker
+docker exec ollama ollama pull nomic-embed-text
+
+# Nativ
+ollama pull nomic-embed-text
+```
+
+Die App funktioniert auch ohne - RAG-Features sind dann nicht verfuegbar.
+
+### Port-Konflikte (EADDRINUSE)
+
+Standard-Ports 3000/9000 koennten belegt sein. Konfiguriert in `forge.config.ts`:
+- `port: 3456` (Dev Server)
+- `loggerPort: 9876` (Webpack Logger)
+
+### Blank Page nach Installation
+
+Verursacht durch `@vercel/webpack-asset-relocator-loader` im Renderer-Bundle. Behoben in `webpack.renderer.config.ts` durch Filtern von `node-loader` und `asset-relocator-loader`.
+
+### EPIPE Crash-Loop
+
+Tritt auf wenn Squirrel den Parent-Prozess schliesst. Behoben durch:
+- Error-Handler auf PDF-Streams
+- try/catch im Logger
+- EPIPE ignorieren im `uncaughtException` Handler
+
+---
+
+## Naechste Schritte
+
+- [Benutzerhandbuch](USER_GUIDE.md)
+- [Architektur](ARCHITECTURE.md)
+- [API Dokumentation](API.md)
+
+---
+
+*Letzte Aktualisierung: 2026-02-11*
