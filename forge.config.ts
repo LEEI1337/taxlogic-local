@@ -41,7 +41,12 @@ const config: ForgeConfig = {
     new MakerSquirrel({
       name: 'TaxLogic',
       setupIcon: './assets/icon.ico',
-      iconUrl: 'https://raw.githubusercontent.com/taxlogic/taxlogic-local/main/assets/icon.ico'
+      iconUrl: 'https://raw.githubusercontent.com/LEEI1337/taxlogic-local/main/assets/icon.ico',
+      // loadingGif: './assets/installing.gif', // TODO: Add custom install animation
+      title: 'TaxLogic.local - Installation',
+      description: 'AI-powered local tax filing assistant for Austria',
+      authors: 'TaxLogic Team',
+      noMsi: true
     }),
     new MakerZIP({}, ['darwin', 'linux']),
     new MakerDMG({

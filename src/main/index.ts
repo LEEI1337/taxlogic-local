@@ -33,9 +33,73 @@ import { logger } from './utils/logger';
 // Set app name for Task Manager and system integration
 app.setName('TaxLogic');
 
-// Handle creating/removing shortcuts on Windows when installing/uninstalling
-if (require('electron-squirrel-startup')) {
-  app.quit();
+// Handle Squirrel Windows install/uninstall events with shortcuts
+function handleSquirrelEvent(): boolean {
+  if (process.platform !== 'win32') return false;
+
+  const squirrelCommand = process.argv[1];
+  if (!squirrelCommand) return false;
+
+  const { spawn } = require('child_process') as typeof import('child_process');
+  const appFolder = path.resolve(process.execPath, '..');
+  const rootFolder = path.resolve(appFolder, '..');
+  const updateDotExe = path.resolve(path.join(rootFolder, 'Update.exe'));
+  const exeName = path.basename(process.execPath);
+
+  const spawnUpdate = (args: string[]): void => {
+    try {
+      spawn(updateDotExe, args, { detached: true });
+    } catch {
+      // Update.exe may not exist in dev
+    }
+  };
+
+  switch (squirrelCommand) {
+    case '--squirrel-install':
+    case '--squirrel-updated':
+      // Create Desktop & Start Menu shortcuts
+      spawnUpdate(['--createShortcut', exeName, '--shortcut-locations', 'Desktop,StartMenu']);
+      // Show a brief install notification
+      if (squirrelCommand === '--squirrel-install') {
+        try {
+          const { dialog: installDialog } = require('electron') as typeof import('electron');
+          // Use setTimeout to let the app fully initialize before showing dialog
+          setTimeout(() => {
+            installDialog.showMessageBox({
+              type: 'info',
+              title: 'TaxLogic Installation',
+              message: 'TaxLogic wurde erfolgreich installiert!',
+              detail: 'Verkn\u00FCpfungen wurden auf dem Desktop und im Startmen\u00FC erstellt.\n\nDie Anwendung wird jetzt gestartet.',
+              buttons: ['OK']
+            });
+          }, 500);
+        } catch {
+          // Dialog may fail during install - that's OK
+        }
+      }
+      setTimeout(app.quit, 2000);
+      return true;
+
+    case '--squirrel-uninstall':
+      // Remove shortcuts
+      spawnUpdate(['--removeShortcut', exeName]);
+      setTimeout(app.quit, 1000);
+      return true;
+
+    case '--squirrel-obsolete':
+      app.quit();
+      return true;
+
+    default:
+      return false;
+  }
+}
+
+if (handleSquirrelEvent()) {
+  // Squirrel event handled - don't start the app
+  // app.quit() is already called above
+} else {
+  // Normal startup - continue
 }
 
 // Global reference to prevent garbage collection
