@@ -72,6 +72,7 @@ const ALLOWED_INVOKE_CHANNELS = [
   'fs:selectDirectory',
   'fs:selectFiles',
   'fs:openPath',
+  'fs:saveFile',
 
   // Settings
   'settings:get',
@@ -195,11 +196,18 @@ export interface IElectronAPI {
     export: (formType: string, outputPath: string) => Promise<void>;
   };
 
+  // Guide operations
+  guide: {
+    generate: () => Promise<string>;
+    export: (outputPath: string) => Promise<string>;
+  };
+
   // File system
   fs: {
     selectDirectory: () => Promise<string | null>;
     selectFiles: (filters?: Array<{ name: string; extensions: string[] }>) => Promise<string[] | null>;
     openPath: (path: string) => Promise<void>;
+    saveFile: (defaultName: string, filters?: Array<{ name: string; extensions: string[] }>) => Promise<string | null>;
   };
 }
 
@@ -285,12 +293,20 @@ try {
       export: (formType: string, outputPath: string) => ipcRenderer.invoke('forms:export', formType, outputPath)
     },
 
+    // Guide operations
+    guide: {
+      generate: () => ipcRenderer.invoke('guide:generate'),
+      export: (outputPath: string) => ipcRenderer.invoke('guide:export', outputPath)
+    },
+
     // File system
     fs: {
       selectDirectory: () => ipcRenderer.invoke('fs:selectDirectory'),
       selectFiles: (filters?: Array<{ name: string; extensions: string[] }>) =>
         ipcRenderer.invoke('fs:selectFiles', filters),
-      openPath: (path: string) => ipcRenderer.invoke('fs:openPath', path)
+      openPath: (path: string) => ipcRenderer.invoke('fs:openPath', path),
+      saveFile: (defaultName: string, filters?: Array<{ name: string; extensions: string[] }>) =>
+        ipcRenderer.invoke('fs:saveFile', defaultName, filters)
     }
   } as IElectronAPI);
 } catch (error) {

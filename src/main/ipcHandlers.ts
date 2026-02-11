@@ -225,6 +225,16 @@ export function registerIpcHandlers(): void {
         dbService.updateInterviewResponses(currentInterviewId, responses);
       }
 
+      // Update interview status to completed in DB
+      if (response.isComplete && currentInterviewId) {
+        try {
+          dbService.updateInterviewStatus(currentInterviewId, 'completed');
+          logger.info('Interview marked as completed:', currentInterviewId);
+        } catch (statusError) {
+          logger.warn('Could not update interview status:', statusError);
+        }
+      }
+
       return {
         message: response.message,
         question: response.nextQuestion,
@@ -252,6 +262,24 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('interview:load', async (_event, id: string) => {
     logger.info('Loading interview:', id);
     const interview = dbService.getInterview(id);
+    if (interview) {
+      // Restore agent context so subsequent processResponse calls work
+      currentInterviewId = interview.id;
+      try {
+        const responses = interview.responses || {};
+        interviewerAgent.restoreContext({
+          userId: interview.user_id,
+          taxYear: interview.tax_year,
+          currentQuestionId: (responses._currentQuestionId as string) || 'greeting',
+          responses: responses,
+          conversationHistory: [],
+          validationErrors: []
+        });
+        logger.info('Interview context restored for:', id);
+      } catch (ctxError) {
+        logger.warn('Could not restore interview context:', ctxError);
+      }
+    }
     return interview || {};
   });
 

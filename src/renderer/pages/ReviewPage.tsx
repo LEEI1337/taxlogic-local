@@ -40,7 +40,20 @@ function ReviewPage(): React.ReactElement {
     setIsLoading(true);
     try {
       if (window.electronAPI) {
-        const result = await window.electronAPI.invoke('analysis:getResults') as TaxAnalysis | null;
+        // First try to get cached results
+        let result = await window.electronAPI.invoke('analysis:getResults') as TaxAnalysis | null;
+
+        // If no cached results exist, trigger calculation automatically
+        if (!result || (typeof result === 'object' && !result.totalIncome && !result.totalDeductions)) {
+          addNotification('info', 'Analyse wird berechnet...');
+          try {
+            result = await window.electronAPI.invoke('analysis:calculate') as TaxAnalysis | null;
+          } catch (calcError) {
+            console.warn('Auto-calculate failed:', calcError);
+            // Continue with null result
+          }
+        }
+
         if (result && typeof result === 'object') {
           // Ensure all required fields have defaults
           setAnalysis({
@@ -57,7 +70,7 @@ function ReviewPage(): React.ReactElement {
       }
     } catch (error) {
       console.error('Failed to load analysis:', error);
-      addNotification('error', 'Noch keine Analyse vorhanden. Bitte zuerst das Interview abschliessen.');
+      addNotification('error', 'Analyse konnte nicht berechnet werden. Bitte zuerst das Interview abschliessen.');
       setAnalysis(null);
     } finally {
       setIsLoading(false);

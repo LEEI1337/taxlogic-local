@@ -209,7 +209,8 @@ export const useAppStore = create<AppState>()(
         isOnboarded: state.isOnboarded,
         userProfile: state.userProfile,
         settings: state.settings,
-        currentTaxYear: state.currentTaxYear
+        currentTaxYear: state.currentTaxYear,
+        currentStep: state.currentStep
       })
     }
   )

@@ -503,12 +503,17 @@ export class InterviewerAgent {
     }
 
     if (question.type === 'choice' && question.options) {
-      const lowerResponse = response.toLowerCase();
-      const validOption = question.options.some(
-        (opt) => opt.toLowerCase() === lowerResponse || opt.toLowerCase().startsWith(lowerResponse)
+      const lowerResponse = response.toLowerCase().trim();
+      // Allow exact match (case-insensitive) or numeric index selection
+      const exactMatch = question.options.some(
+        (opt) => opt.toLowerCase() === lowerResponse
       );
-      if (!validOption) {
-        return `Bitte wählen Sie eine der folgenden Optionen: ${question.options.join(', ')}`;
+      const numericIndex = parseInt(response) - 1;
+      const validByIndex = numericIndex >= 0 && numericIndex < question.options.length;
+
+      if (!exactMatch && !validByIndex) {
+        const optionsList = question.options.map((o, i) => `${i + 1}. ${o}`).join('\n');
+        return `Bitte waehlen Sie eine der folgenden Optionen:\n${optionsList}`;
       }
     }
 
@@ -531,13 +536,20 @@ export class InterviewerAgent {
         return lower === 'ja' || lower === 'yes' || lower === 'true' || lower === '1';
       }
       case 'choice': {
-        // Find the matching option
-        const lowerResponse = response.toLowerCase();
-        return (
-          question.options?.find(
-            (opt) => opt.toLowerCase() === lowerResponse || opt.toLowerCase().startsWith(lowerResponse)
-          ) || response
+        const lowerResponse = response.toLowerCase().trim();
+        // Exact match first (case-insensitive)
+        const exactMatch = question.options?.find(
+          (opt) => opt.toLowerCase() === lowerResponse
         );
+        if (exactMatch) return exactMatch;
+
+        // Numeric index selection (e.g., "1", "2", "3")
+        const numericIndex = parseInt(response) - 1;
+        if (numericIndex >= 0 && question.options && numericIndex < question.options.length) {
+          return question.options[numericIndex];
+        }
+
+        return response;
       }
       default:
         return response.trim();
