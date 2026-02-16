@@ -31,7 +31,7 @@ Executed from: `c:\Users\Legion\Documents\2026 tax\taxlogic-local`
 
 - `npm run lint`: pass
 - `npm run type-check`: pass
-- `npm test`: pass (10 files, 178 tests)
+- `npm test`: pass (10 files, 185 tests)
 - `npm run tax-rules:doctor`: pass
 - `npm run package`: pass
 - `npm audit --omit=dev --audit-level=moderate`: pass (0 vulnerabilities)
@@ -107,8 +107,8 @@ Executed from: `c:\Users\Legion\Documents\2026 tax\taxlogic-local`
 
 ## Milestone C: Coverage and Test Expansion
 
-1. Extend IPC integration tests across additional handler families.
-2. Add runtime block tests for stale/missing rule states.
+1. Expand IPC integration tests into deeper stateful DB/LLM scenarios.
+2. Add restart-persistence integration tests for settings/interviews/documents.
 3. Add end-to-end year-switch regression tests.
 
 ---

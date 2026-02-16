@@ -114,11 +114,19 @@ Implement audit top-fixes and the tax-rules updater/checker plan without changin
   - `forms:generate`
   - `interview:continue`
   - `taxRules:getStatus`
+  - `settings`, `apiKeys`, `fs`, `documents`, `rag`
 - Validates hard blocking for tax-critical operations on non-`ok` rule states:
   - `analysis:calculate`
   - `forms:generate`
   - `guide:generate`
 - Confirms blocked execution does not reach downstream generators/analyzer paths.
+- Adds success-path integration checks for:
+  - settings persistence/reset behavior
+  - encrypted API key read/write + masking
+  - file-system dialogs/open-path flow
+  - document upload/process flow
+  - rag query/search payload and mapping behavior
+  - tax-rules diagnostics endpoints
 
 ---
 
@@ -128,7 +136,7 @@ Executed on 2026-02-16:
 
 - `npm run lint` -> pass
 - `npm run type-check` -> pass
-- `npm test` -> pass (10 files, 178 tests)
+- `npm test` -> pass (10 files, 185 tests)
 - `npm run tax-rules:doctor` -> pass
 - `npm run package` -> pass
 - `npm audit --omit=dev --audit-level=moderate` -> pass (0 vulnerabilities)
@@ -155,6 +163,6 @@ Executed on 2026-02-16:
 ## Remaining Work (Next Wave)
 
 1. Remove remaining low advisory chain once upstream Forge transitive dependency updates are available.
-2. Expand security integration tests for rejected IPC payloads.
-3. Add runtime stale/missing rule block integration tests.
+2. Expand IPC integration coverage for deeper stateful DB/LLM flows.
+3. Add restart-persistence integration tests (settings/interview/documents).
 4. Add signed snapshot flow for tax sources.

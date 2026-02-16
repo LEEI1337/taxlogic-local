@@ -28,6 +28,15 @@ const setupIpcHarness = async (initialState: TaxRuleState = 'ok') => {
   const userDataDir = createTempDir();
   let currentState: TaxRuleState = initialState;
 
+  const dialogMock = {
+    showOpenDialog: vi.fn().mockResolvedValue({ canceled: true, filePaths: [] as string[] }),
+    showSaveDialog: vi.fn().mockResolvedValue({ canceled: true, filePath: null as string | null })
+  };
+
+  const shellMock = {
+    openPath: vi.fn().mockResolvedValue('')
+  };
+
   const llmServiceMock = {
     checkStatus: vi.fn().mockResolvedValue({}),
     getAvailableModels: vi.fn().mockResolvedValue([]),
@@ -118,13 +127,8 @@ const setupIpcHarness = async (initialState: TaxRuleState = 'ok') => {
       getVersion: vi.fn().mockReturnValue('1.0.0-alpha'),
       getPath: vi.fn().mockImplementation(() => userDataDir)
     },
-    dialog: {
-      showOpenDialog: vi.fn().mockResolvedValue({ canceled: true, filePaths: [] }),
-      showSaveDialog: vi.fn().mockResolvedValue({ canceled: true, filePath: null })
-    },
-    shell: {
-      openPath: vi.fn().mockResolvedValue('')
-    },
+    dialog: dialogMock,
+    shell: shellMock,
     BrowserWindow: {
       getFocusedWindow: vi.fn().mockReturnValue(null)
     },
@@ -197,7 +201,9 @@ const setupIpcHarness = async (initialState: TaxRuleState = 'ok') => {
       guideGeneratorMock,
       documentInspectorAgentMock,
       retrieverMock,
-      knowledgeBaseMock
+      knowledgeBaseMock,
+      dialogMock,
+      shellMock
     }
   };
 };
@@ -314,6 +320,148 @@ describe('IPC handlers integration', () => {
     await harness.invoke('taxRules:getStatus');
 
     expect(harness.mocks.getTaxRuleStatusMock).toHaveBeenCalledWith(new Date().getFullYear() - 1);
+  });
+
+  it('persists and reads settings with valid payloads', async () => {
+    const harness = await setupIpcHarness('ok');
+
+    await harness.invoke('settings:set', 'uiLanguage', 'de');
+    await harness.invoke('settings:set', 'currentTaxYear', 2026);
+
+    await expect(harness.invoke('settings:get', 'uiLanguage')).resolves.toBe('de');
+    await expect(harness.invoke('settings:getAll')).resolves.toMatchObject({
+      uiLanguage: 'de',
+      currentTaxYear: 2026
+    });
+
+    expect(harness.mocks.knowledgeBaseMock.initialize).toHaveBeenCalledWith(2026);
+  });
+
+  it('stores api keys encrypted and exposes masked values', async () => {
+    const harness = await setupIpcHarness('ok');
+    const key = 'sk-1234567890abcdef';
+
+    await harness.invoke('apiKeys:set', 'openaiApiKey', key);
+    await expect(harness.invoke('apiKeys:get', 'openaiApiKey')).resolves.toBe(key);
+
+    const all = await harness.invoke('apiKeys:getAll') as Record<string, string>;
+    expect(all.openaiApiKey).toBe('sk-123...cdef');
+    expect(all._storageMode).toBe('encrypted');
+  });
+
+  it('handles valid fs operations', async () => {
+    const harness = await setupIpcHarness('ok');
+    const expectedSavePath = 'C:\\tmp\\tax-guide.pdf';
+    const expectedOpenPath = 'C:\\tmp\\open-me.pdf';
+
+    harness.mocks.dialogMock.showSaveDialog.mockResolvedValueOnce({
+      canceled: false,
+      filePath: expectedSavePath
+    });
+    harness.mocks.dialogMock.showOpenDialog.mockResolvedValueOnce({
+      canceled: false,
+      filePaths: ['C:\\tmp\\a.pdf', 'C:\\tmp\\b.pdf']
+    });
+
+    await expect(harness.invoke('fs:saveFile', 'guide.pdf')).resolves.toBe(expectedSavePath);
+    await expect(harness.invoke('fs:selectFiles')).resolves.toEqual(['C:\\tmp\\a.pdf', 'C:\\tmp\\b.pdf']);
+    await harness.invoke('fs:openPath', expectedOpenPath);
+
+    expect(harness.mocks.shellMock.openPath).toHaveBeenCalledWith(expectedOpenPath);
+  });
+
+  it('processes valid documents payloads', async () => {
+    const harness = await setupIpcHarness('ok');
+    const filePath = 'C:\\tmp\\receipt.pdf';
+
+    harness.mocks.documentInspectorAgentMock.processDocument.mockResolvedValueOnce({
+      id: 'doc-1',
+      filePath,
+      classification: {
+        category: 'Werbungskosten',
+        subcategory: 'Arbeitsmittel'
+      },
+      extractedData: {},
+      ocrResult: {
+        confidence: 0.98
+      }
+    });
+
+    const uploaded = await harness.invoke('documents:upload', [filePath]) as Array<Record<string, unknown>>;
+    const processed = await harness.invoke('documents:process', 'doc-1') as Record<string, unknown>;
+
+    expect(uploaded).toHaveLength(1);
+    expect(uploaded[0].status).toBe('processed');
+    expect(processed).toMatchObject({ id: 'doc-1', status: 'processed' });
+    expect(harness.mocks.documentInspectorAgentMock.processDocument).toHaveBeenCalledWith(filePath);
+  });
+
+  it('handles valid rag query and search payloads', async () => {
+    const harness = await setupIpcHarness('ok');
+
+    harness.mocks.retrieverMock.query.mockResolvedValueOnce({
+      answer: 'ok',
+      sources: []
+    });
+    harness.mocks.knowledgeBaseMock.search.mockResolvedValueOnce([
+      {
+        chunk: {
+          metadata: { title: 'Pendlerpauschale' },
+          content: 'Inhalt'
+        },
+        document: {
+          source: 'BMF'
+        },
+        similarity: 0.91
+      }
+    ]);
+
+    const ragResult = await harness.invoke('rag:query', 'Was gilt fuer Pendler?', 'allgemein', 2026);
+    const searchResult = await harness.invoke('rag:search', 'Pendlerpauschale', 3);
+
+    expect(ragResult).toMatchObject({ answer: 'ok' });
+    expect(harness.mocks.retrieverMock.query).toHaveBeenCalledWith(
+      expect.objectContaining({
+        question: 'Was gilt fuer Pendler?',
+        category: 'allgemein',
+        taxYear: 2026,
+        includeSourceCitations: true
+      })
+    );
+    expect(searchResult).toEqual([
+      {
+        title: 'Pendlerpauschale',
+        content: 'Inhalt',
+        source: 'BMF',
+        similarity: 0.91
+      }
+    ]);
+  });
+
+  it('returns valid taxRules diagnostics payloads', async () => {
+    const harness = await setupIpcHarness('ok');
+
+    await expect(harness.invoke('taxRules:getSupportedYears')).resolves.toEqual([2024, 2025, 2026]);
+    await expect(harness.invoke('taxRules:getStatus', 2025)).resolves.toMatchObject({
+      year: 2025,
+      state: 'ok'
+    });
+    await expect(harness.invoke('taxRules:getDiagnostics')).resolves.toEqual([]);
+  });
+
+  it('runs tax-critical operations when rules are ok', async () => {
+    const harness = await setupIpcHarness('ok');
+    await harness.invoke('settings:set', 'currentTaxYear', 2025);
+
+    await expect(harness.invoke('analysis:calculate')).resolves.toMatchObject({
+      grossIncome: 0
+    });
+    await expect(harness.invoke('forms:generate', 'L1')).resolves.toBe('');
+    await expect(harness.invoke('guide:generate')).resolves.toBe('');
+
+    expect(harness.mocks.analyzerAgentMock.calculateTax).toHaveBeenCalled();
+    expect(harness.mocks.formGeneratorMock.generateL1).toHaveBeenCalled();
+    expect(harness.mocks.guideGeneratorMock.generateGuide).toHaveBeenCalled();
   });
 
   it('blocks tax-critical operations when rules are stale', async () => {

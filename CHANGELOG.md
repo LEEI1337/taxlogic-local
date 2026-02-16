@@ -35,6 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `tests/unit/ipcHandlers.integration.test.ts`
 - Expanded IPC integration reject-coverage for:
   - `settings`, `apiKeys`, `fs`, `documents`, `rag`
+- Added IPC integration success-path coverage for:
+  - `settings`, `apiKeys`, `fs`, `documents`, `rag`, `taxRules`, tax-critical execution paths
 
 ### Changed
 - Analyzer and workflow now load tax constants from year-based rule packs instead of hardcoded 2024 values
