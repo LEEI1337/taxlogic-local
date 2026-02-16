@@ -88,6 +88,15 @@ const setupIpcHarness = async (initialState: TaxRuleState = 'ok') => {
     exportAsPDF: vi.fn().mockResolvedValue('')
   };
 
+  const documentInspectorAgentMock = {
+    processDocument: vi.fn(),
+    terminate: vi.fn()
+  };
+
+  const retrieverMock = {
+    query: vi.fn().mockResolvedValue({})
+  };
+
   const knowledgeBaseMock = {
     initialize: vi.fn().mockResolvedValue(undefined),
     search: vi.fn().mockResolvedValue([])
@@ -147,16 +156,11 @@ const setupIpcHarness = async (initialState: TaxRuleState = 'ok') => {
   vi.doMock('../../src/backend/services/guideGenerator', () => ({ guideGenerator: guideGeneratorMock }));
   vi.doMock('../../src/backend/agents/interviewerAgent', () => ({ interviewerAgent: interviewerAgentMock }));
   vi.doMock('../../src/backend/agents/documentInspectorAgent', () => ({
-    documentInspectorAgent: {
-      processDocument: vi.fn(),
-      terminate: vi.fn()
-    }
+    documentInspectorAgent: documentInspectorAgentMock
   }));
   vi.doMock('../../src/backend/agents/analyzerAgent', () => ({ analyzerAgent: analyzerAgentMock }));
   vi.doMock('../../src/backend/rag/knowledgeBase', () => ({ knowledgeBase: knowledgeBaseMock }));
-  vi.doMock('../../src/backend/rag/retriever', () => ({
-    retriever: { query: vi.fn().mockResolvedValue({}) }
-  }));
+  vi.doMock('../../src/backend/rag/retriever', () => ({ retriever: retrieverMock }));
   vi.doMock('../../src/backend/utils/validation', () => ({
     sanitizeUserInput: (value: string) => value
   }));
@@ -190,7 +194,10 @@ const setupIpcHarness = async (initialState: TaxRuleState = 'ok') => {
       getTaxRuleStatusMock,
       analyzerAgentMock,
       formGeneratorMock,
-      guideGeneratorMock
+      guideGeneratorMock,
+      documentInspectorAgentMock,
+      retrieverMock,
+      knowledgeBaseMock
     }
   };
 };
@@ -229,6 +236,9 @@ describe('IPC handlers integration', () => {
   it('rejects invalid settings payloads', async () => {
     const harness = await setupIpcHarness('ok');
 
+    await expect(harness.invoke('settings:get', '   ')).rejects.toThrow(
+      /Invalid settings:get key/
+    );
     await expect(harness.invoke('settings:set', '   ', 'value')).rejects.toThrow(
       /Invalid settings:set key/
     );
@@ -240,6 +250,9 @@ describe('IPC handlers integration', () => {
   it('rejects invalid apiKeys payloads', async () => {
     const harness = await setupIpcHarness('ok');
 
+    await expect(harness.invoke('apiKeys:get', 'invalidKey')).rejects.toThrow(
+      /Invalid apiKeys:get keyName/
+    );
     await expect(harness.invoke('apiKeys:set', 'invalidKey', 'secret')).rejects.toThrow(
       /Invalid apiKeys:set keyName/
     );
@@ -257,6 +270,50 @@ describe('IPC handlers integration', () => {
     await expect(harness.invoke('fs:selectFiles', [{ name: '', extensions: ['pdf'] }])).rejects.toThrow(
       /Invalid fs:selectFiles filters/
     );
+    await expect(harness.invoke('fs:saveFile', '   ')).rejects.toThrow(
+      /Invalid fs:saveFile payload/
+    );
+  });
+
+  it('rejects invalid documents payloads', async () => {
+    const harness = await setupIpcHarness('ok');
+
+    await expect(harness.invoke('documents:upload', [])).rejects.toThrow(
+      /Invalid documents:upload payload/
+    );
+    await expect(harness.invoke('documents:process', '   ')).rejects.toThrow(
+      /Invalid documents:process payload/
+    );
+
+    expect(harness.mocks.documentInspectorAgentMock.processDocument).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid rag payloads', async () => {
+    const harness = await setupIpcHarness('ok');
+
+    await expect(harness.invoke('rag:query', '   ')).rejects.toThrow(
+      /Invalid rag:query payload/
+    );
+    await expect(harness.invoke('rag:query', 'question', undefined, 1900)).rejects.toThrow(
+      /Invalid rag:query payload/
+    );
+    await expect(harness.invoke('rag:search', '   ')).rejects.toThrow(
+      /Invalid rag:search query/
+    );
+
+    expect(harness.mocks.retrieverMock.query).not.toHaveBeenCalled();
+    expect(harness.mocks.knowledgeBaseMock.search).not.toHaveBeenCalled();
+  });
+
+  it('resets current tax year to fallback after settings:reset', async () => {
+    const harness = await setupIpcHarness('ok');
+    await harness.invoke('settings:set', 'currentTaxYear', 2024);
+
+    harness.mocks.getTaxRuleStatusMock.mockClear();
+    await harness.invoke('settings:reset');
+    await harness.invoke('taxRules:getStatus');
+
+    expect(harness.mocks.getTaxRuleStatusMock).toHaveBeenCalledWith(new Date().getFullYear() - 1);
   });
 
   it('blocks tax-critical operations when rules are stale', async () => {

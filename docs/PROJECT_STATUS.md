@@ -31,7 +31,7 @@ Executed from: `c:\Users\Legion\Documents\2026 tax\taxlogic-local`
 
 - `npm run lint`: pass
 - `npm run type-check`: pass
-- `npm test`: pass (10 files, 175 tests)
+- `npm test`: pass (10 files, 178 tests)
 - `npm run tax-rules:doctor`: pass
 - `npm run package`: pass
 - `npm audit --omit=dev --audit-level=moderate`: pass (0 vulnerabilities)

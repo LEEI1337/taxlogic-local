@@ -33,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Monthly freshness workflow: `.github/workflows/tax-rules-freshness.yml`
 - IPC integration tests for validation and runtime rule blocking:
   - `tests/unit/ipcHandlers.integration.test.ts`
+- Expanded IPC integration reject-coverage for:
+  - `settings`, `apiKeys`, `fs`, `documents`, `rag`
 
 ### Changed
 - Analyzer and workflow now load tax constants from year-based rule packs instead of hardcoded 2024 values

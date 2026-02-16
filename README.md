@@ -240,7 +240,7 @@ TaxLogic.local
 # Start dev server (hot reload)
 npm run dev
 
-# Run tests (175 tests)
+# Run tests (178 tests)
 npm test
 
 # Type checking
@@ -344,7 +344,7 @@ taxlogic-local/
 │       └── workflows/
 │           └── taxWorkflow.ts      # LangGraph state machine
 │
-├── tests/                          # 175 tests (vitest)
+├── tests/                          # 178 tests (vitest)
 ├── forge.config.ts                 # Electron Forge + Squirrel
 ├── webpack.main.config.ts          # Main process webpack (externals: sql.js)
 ├── webpack.renderer.config.ts      # Renderer webpack (filtered rules)
