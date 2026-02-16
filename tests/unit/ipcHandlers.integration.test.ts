@@ -226,6 +226,39 @@ describe('IPC handlers integration', () => {
     );
   });
 
+  it('rejects invalid settings payloads', async () => {
+    const harness = await setupIpcHarness('ok');
+
+    await expect(harness.invoke('settings:set', '   ', 'value')).rejects.toThrow(
+      /Invalid settings:set key/
+    );
+    await expect(harness.invoke('settings:set', 'currentTaxYear', '2025')).rejects.toThrow(
+      /Invalid currentTaxYear setting/
+    );
+  });
+
+  it('rejects invalid apiKeys payloads', async () => {
+    const harness = await setupIpcHarness('ok');
+
+    await expect(harness.invoke('apiKeys:set', 'invalidKey', 'secret')).rejects.toThrow(
+      /Invalid apiKeys:set keyName/
+    );
+    await expect(harness.invoke('apiKeys:set', 'openaiApiKey', 'a'.repeat(5001))).rejects.toThrow(
+      /Invalid apiKeys:set value/
+    );
+  });
+
+  it('rejects invalid fs payloads', async () => {
+    const harness = await setupIpcHarness('ok');
+
+    await expect(harness.invoke('fs:openPath', '   ')).rejects.toThrow(
+      /Invalid fs:openPath payload/
+    );
+    await expect(harness.invoke('fs:selectFiles', [{ name: '', extensions: ['pdf'] }])).rejects.toThrow(
+      /Invalid fs:selectFiles filters/
+    );
+  });
+
   it('blocks tax-critical operations when rules are stale', async () => {
     const harness = await setupIpcHarness('stale');
     await harness.invoke('settings:set', 'currentTaxYear', 2025);

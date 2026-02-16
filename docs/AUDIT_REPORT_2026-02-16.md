@@ -351,7 +351,7 @@ Script wiring evidence:
 
 - `npm run type-check`: pass
 - `npm run lint`: pass
-- `npm test`: pass (`10 files`, `172 tests`)
+- `npm test`: pass (`10 files`, `175 tests`)
 - `npm run tax-rules:doctor`: pass
 - `npm audit --omit=dev --audit-level=moderate`: pass (`0 vulnerabilities`)
 - `npm audit --audit-level=moderate`: pass
