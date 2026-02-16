@@ -7,6 +7,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AnalyzerAgent, TaxProfile, TaxCalculationResult } from '../../src/backend/agents/analyzerAgent';
+import { getTaxRulesForYear } from '../../src/backend/taxRules';
 
 // Mock the LLM service (AI analysis is not the subject of these tests)
 vi.mock('../../src/backend/services/llmService', () => ({
@@ -21,6 +22,7 @@ vi.mock('../../src/backend/services/llmService', () => ({
 
 describe('E2E Steuerberechnung - Realistische Szenarien', () => {
   let agent: AnalyzerAgent;
+  const rules2024 = getTaxRulesForYear(2024);
 
   beforeEach(() => {
     agent = new AnalyzerAgent();
@@ -68,15 +70,11 @@ describe('E2E Steuerberechnung - Realistische Szenarien', () => {
   // ==========================================
 
   function manualProgressiveTax(taxableIncome: number): number {
-    const brackets = [
-      { min: 0, max: 11693, rate: 0 },
-      { min: 11693, max: 19134, rate: 0.2 },
-      { min: 19134, max: 32075, rate: 0.3 },
-      { min: 32075, max: 62080, rate: 0.4 },
-      { min: 62080, max: 93120, rate: 0.48 },
-      { min: 93120, max: 1000000, rate: 0.5 },
-      { min: 1000000, max: Infinity, rate: 0.55 }
-    ];
+    const brackets = rules2024.taxBrackets.map((bracket) => ({
+      min: bracket.min,
+      max: bracket.max ?? Infinity,
+      rate: bracket.rate
+    }));
 
     let tax = 0;
     let remaining = taxableIncome;
@@ -90,6 +88,24 @@ describe('E2E Steuerberechnung - Realistische Szenarien', () => {
     return tax;
   }
 
+  function tieredFamilyCredit(
+    childCount: number,
+    tier: { firstChild: number; secondChildIncrement: number; additionalChildIncrement: number }
+  ): number {
+    if (childCount <= 0) {
+      return 0;
+    }
+
+    let total = tier.firstChild;
+    if (childCount >= 2) {
+      total += tier.secondChildIncrement;
+    }
+    if (childCount >= 3) {
+      total += (childCount - 2) * tier.additionalChildIncrement;
+    }
+    return total;
+  }
+
   // ==========================================
   // Szenario 1: Angestellter, Einkommen €35.000, keine Absetzbeträge
   // ==========================================
@@ -101,15 +117,16 @@ describe('E2E Steuerberechnung - Realistische Szenarien', () => {
       const profile = makeProfile();
       result = await agent.calculateTax(profile);
 
-      // Only Werbungskostenpauschale €132 applies (no other deductions)
-      const expectedTaxableIncome = 35000 - 132;
+      const expectedTaxableIncome = 35000 - rules2024.credits.werbungskostenPauschale;
       expect(result.taxableIncome).toBe(expectedTaxableIncome);
 
       // Progressive tax on €34,868
       const expectedTax = manualProgressiveTax(expectedTaxableIncome);
 
-      // Absetzbeträge: Verkehrsabsetzbetrag €463 + Arbeitnehmerabsetzbetrag €500
-      const expectedTaxAfterCredits = Math.max(0, expectedTax - 463 - 500);
+      const expectedTaxAfterCredits = Math.max(
+        0,
+        expectedTax - rules2024.credits.verkehrsabsetzbetrag - rules2024.credits.arbeitnehmerabsetzbetrag
+      );
       expect(result.calculatedTax).toBeCloseTo(expectedTaxAfterCredits, 0);
 
       // Refund = withheldTax - calculatedTax
@@ -117,11 +134,11 @@ describe('E2E Steuerberechnung - Realistische Szenarien', () => {
       expect(result.estimatedRefund).toBeCloseTo(expectedRefund, 0);
     });
 
-    it('should have €132 Werbungskostenpauschale as minimum', async () => {
+    it('should use the configured Werbungskostenpauschale as minimum', async () => {
       const profile = makeProfile();
       result = await agent.calculateTax(profile);
-      expect(result.werbungskostenPauschale).toBe(132);
-      expect(result.effectiveDeductions).toBe(132);
+      expect(result.werbungskostenPauschale).toBe(rules2024.credits.werbungskostenPauschale);
+      expect(result.effectiveDeductions).toBe(rules2024.credits.werbungskostenPauschale);
     });
   });
 
@@ -214,21 +231,22 @@ describe('E2E Steuerberechnung - Realistische Szenarien', () => {
 
       const result = await agent.calculateTax(profile);
 
-      // Alleinerzieherabsetzbetrag = €494 + 2 * €175 = €844
-      expect(result.absetzbetraege.alleinerzieherabsetzbetrag).toBe(494 + 2 * 175);
+      const expectedAlleinerzieher = tieredFamilyCredit(2, rules2024.credits.alleinerzieher);
+      expect(result.absetzbetraege.alleinerzieherabsetzbetrag).toBe(expectedAlleinerzieher);
 
       // Familienbonus: 2 children under 18 = 2 * €2000 = €4000
       expect(result.absetzbetraege.familienbonus).toBe(4000);
 
-      // Verkehrsabsetzbetrag + Arbeitnehmerabsetzbetrag still apply
-      expect(result.absetzbetraege.verkehrsabsetzbetrag).toBe(463);
-      expect(result.absetzbetraege.arbeitnehmerabsetzbetrag).toBe(500);
+      expect(result.absetzbetraege.verkehrsabsetzbetrag).toBe(rules2024.credits.verkehrsabsetzbetrag);
+      expect(result.absetzbetraege.arbeitnehmerabsetzbetrag).toBe(rules2024.credits.arbeitnehmerabsetzbetrag);
 
-      // Total Absetzbeträge = 463 + 500 + 844 + 4000 = 5807
-      const totalCredits = 463 + 500 + 844 + 4000;
+      const totalCredits =
+        rules2024.credits.verkehrsabsetzbetrag +
+        rules2024.credits.arbeitnehmerabsetzbetrag +
+        expectedAlleinerzieher +
+        (2 * rules2024.credits.familienbonusPerChild);
 
-      // Tax on €45000 - €132 = €44868
-      const expectedTax = manualProgressiveTax(45000 - 132);
+      const expectedTax = manualProgressiveTax(45000 - rules2024.credits.werbungskostenPauschale);
 
       // Tax after credits (can't go below 0)
       const expectedTaxAfterCredits = Math.max(0, expectedTax - totalCredits);
@@ -465,8 +483,8 @@ describe('E2E Steuerberechnung - Realistische Szenarien', () => {
 
       const result = await agent.calculateTax(profile);
 
-      // Taxable income: 11000 - 132 = 10868 < 11693 → tax = 0
-      expect(result.taxableIncome).toBe(10868);
+      const expectedTaxableIncome = 11000 - rules2024.credits.werbungskostenPauschale;
+      expect(result.taxableIncome).toBe(expectedTaxableIncome);
       expect(result.calculatedTax).toBe(0);
       expect(result.estimatedRefund).toBeCloseTo(500, 0);
     });
@@ -484,11 +502,14 @@ describe('E2E Steuerberechnung - Realistische Szenarien', () => {
 
       const result = await agent.calculateTax(profile);
 
-      // Taxable income: 100000 - 132 = 99868
-      expect(result.taxableIncome).toBe(99868);
+      const expectedTaxableIncome = 100000 - rules2024.credits.werbungskostenPauschale;
+      expect(result.taxableIncome).toBe(expectedTaxableIncome);
 
-      const expectedTax = manualProgressiveTax(99868);
-      const expectedTaxAfterCredits = Math.max(0, expectedTax - 463 - 500);
+      const expectedTax = manualProgressiveTax(expectedTaxableIncome);
+      const expectedTaxAfterCredits = Math.max(
+        0,
+        expectedTax - rules2024.credits.verkehrsabsetzbetrag - rules2024.credits.arbeitnehmerabsetzbetrag
+      );
 
       expect(result.calculatedTax).toBeCloseTo(expectedTaxAfterCredits, 0);
     });
@@ -581,8 +602,7 @@ describe('E2E Steuerberechnung - Realistische Szenarien', () => {
 
       const result = await agent.calculateTax(profile);
 
-      // Adult child (20): €650 Familienbonus
-      expect(result.absetzbetraege.familienbonus).toBe(650);
+      expect(result.absetzbetraege.familienbonus).toBe(rules2024.credits.familienbonusPerChildAdult);
     });
   });
 
@@ -648,9 +668,11 @@ describe('E2E Steuerberechnung - Realistische Szenarien', () => {
       // Progressive tax
       const expectedTax = manualProgressiveTax(38608);
 
-      // Absetzbeträge: 463 (Verkehr) + 500 (AN) + 2000 (Familienbonus for 1 child <18) = 2963
-      expect(result.absetzbetraege.familienbonus).toBe(2000);
-      const totalCredits = 463 + 500 + 2000;
+      expect(result.absetzbetraege.familienbonus).toBe(rules2024.credits.familienbonusPerChild);
+      const totalCredits =
+        rules2024.credits.verkehrsabsetzbetrag +
+        rules2024.credits.arbeitnehmerabsetzbetrag +
+        rules2024.credits.familienbonusPerChild;
 
       const taxAfterCredits = Math.max(0, expectedTax - totalCredits);
       expect(result.calculatedTax).toBeCloseTo(taxAfterCredits, 0);
@@ -734,7 +756,9 @@ describe('E2E Steuerberechnung - Realistische Szenarien', () => {
       expect(result.breakdown.medicalExpenses.amount).toBeCloseTo(10000 - expectedSelfRetention, 0);
 
       // Also should have Alleinverdienerabsetzbetrag
-      expect(result.absetzbetraege.alleinverdienerabsetzbetrag).toBe(494 + 2 * 175);
+      expect(result.absetzbetraege.alleinverdienerabsetzbetrag).toBe(
+        tieredFamilyCredit(2, rules2024.credits.alleinverdiener)
+      );
     });
   });
 });

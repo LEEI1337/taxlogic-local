@@ -70,7 +70,8 @@ function ReviewPage(): React.ReactElement {
       }
     } catch (error) {
       console.error('Failed to load analysis:', error);
-      addNotification('error', 'Analyse konnte nicht berechnet werden. Bitte zuerst das Interview abschliessen.');
+      const details = error instanceof Error ? error.message : 'Unbekannter Fehler';
+      addNotification('error', `Analyse konnte nicht berechnet werden: ${details}`);
       setAnalysis(null);
     } finally {
       setIsLoading(false);

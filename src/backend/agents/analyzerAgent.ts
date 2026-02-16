@@ -1,4 +1,4 @@
-/**
+﻿/**
  * TaxLogic.local - Analyzer Agent
  *
  * AI agent that performs tax calculations:
@@ -9,6 +9,7 @@
  */
 
 import { llmService } from '../services/llmService';
+import { getTaxRulesForYear, TaxRulePack, TieredFamilyCredit } from '../taxRules';
 
 // ========================================
 // Type Definitions
@@ -50,7 +51,7 @@ export interface DeductionInfo {
   donations: number;
   insurance: number;
 
-  // Außergewöhnliche Belastungen
+  // Aussergewoehnliche Belastungen
   medicalExpenses: number;
   disabilityExpenses: number;
   childcareExpenses: number;
@@ -79,7 +80,7 @@ export interface ChildInfo {
   birthDate: string;
   receivingFamilyAllowance: boolean;
   inHousehold: boolean;
-  ownIncome?: number; // Annual income of child (relevant for 18-24 year olds, limit €15,000)
+  ownIncome?: number;
 }
 
 export interface TaxCalculationResult {
@@ -105,7 +106,7 @@ export interface TaxCalculationResult {
   estimatedRefund: number;
   estimatedBackpayment: number;
 
-  // Absetzbeträge
+  // Absetzbetraege
   absetzbetraege: Absetzbetraege;
 
   // AI Analysis
@@ -155,47 +156,6 @@ export interface Recommendation {
 }
 
 // ========================================
-// Austrian Tax Constants (2024)
-// ========================================
-
-const TAX_BRACKETS_2024 = [
-  { min: 0, max: 11693, rate: 0 },
-  { min: 11693, max: 19134, rate: 0.2 },
-  { min: 19134, max: 32075, rate: 0.3 },
-  { min: 32075, max: 62080, rate: 0.4 },
-  { min: 62080, max: 93120, rate: 0.48 },
-  { min: 93120, max: 1000000, rate: 0.5 },
-  { min: 1000000, max: Infinity, rate: 0.55 }
-];
-
-const WERBUNGSKOSTEN_PAUSCHALE = 132;
-const VERKEHRSABSETZBETRAG = 463;
-const ARBEITNEHMERABSETZBETRAG = 500; // §33 Abs 5 Z 2 EStG (2024)
-
-const HOME_OFFICE_PER_DAY = 3;
-const HOME_OFFICE_MAX = 300;
-const HOME_OFFICE_MAX_DAYS = 100;
-
-const CHURCH_TAX_MAX = 600;
-
-const FAMILIENBONUS_PER_CHILD = 2000; // Full amount for children under 18
-const FAMILIENBONUS_PER_CHILD_ADULT = 650; // For children 18+
-
-// Pendlerpauschale tables (per year)
-const PENDLERPAUSCHALE_KLEIN = [
-  { minKm: 20, maxKm: 40, amount: 696 },
-  { minKm: 40, maxKm: 60, amount: 1356 },
-  { minKm: 60, maxKm: Infinity, amount: 2016 }
-];
-
-const PENDLERPAUSCHALE_GROSS = [
-  { minKm: 2, maxKm: 20, amount: 372 },
-  { minKm: 20, maxKm: 40, amount: 1476 },
-  { minKm: 40, maxKm: 60, amount: 2568 },
-  { minKm: 60, maxKm: Infinity, amount: 3672 }
-];
-
-// ========================================
 // Analyzer Agent Class
 // ========================================
 
@@ -204,11 +164,11 @@ export class AnalyzerAgent {
    * Perform complete tax calculation
    */
   async calculateTax(profile: TaxProfile): Promise<TaxCalculationResult> {
-    console.log('[Analyzer] Calculating tax for year', profile.taxYear);
+    const rules = getTaxRulesForYear(profile.taxYear);
 
     // Calculate all deductions
-    const breakdown = this.calculateBreakdown(profile);
-    const absetzbetraege = this.calculateAbsetzbetraege(profile);
+    const breakdown = this.calculateBreakdown(profile, rules);
+    const absetzbetraege = this.calculateAbsetzbetraege(profile, rules);
 
     // Sum up deductions
     const totalWerbungskosten =
@@ -223,7 +183,10 @@ export class AnalyzerAgent {
       breakdown.medicalExpenses.amount + breakdown.childcare.amount;
 
     // Use Werbungskosten or Pauschale (whichever is higher)
-    const effectiveWerbungskosten = Math.max(totalWerbungskosten, WERBUNGSKOSTEN_PAUSCHALE);
+    const effectiveWerbungskosten = Math.max(
+      totalWerbungskosten,
+      rules.credits.werbungskostenPauschale
+    );
 
     const effectiveDeductions =
       effectiveWerbungskosten + totalSonderausgaben + totalAussergewoehnlicheBelastungen;
@@ -233,9 +196,9 @@ export class AnalyzerAgent {
     const taxableIncome = Math.max(0, grossIncome - effectiveDeductions);
 
     // Calculate tax
-    const calculatedTax = this.calculateProgressiveTax(taxableIncome);
+    const calculatedTax = this.calculateProgressiveTax(taxableIncome, rules);
 
-    // Apply Absetzbeträge
+    // Apply Absetzbetraege
     const totalAbsetzbetraege = Object.values(absetzbetraege).reduce((sum, val) => sum + val, 0);
     const taxAfterAbsetzbetraege = Math.max(0, calculatedTax - totalAbsetzbetraege);
 
@@ -247,14 +210,18 @@ export class AnalyzerAgent {
     const estimatedBackpayment = difference < 0 ? Math.abs(difference) : 0;
 
     // Generate AI analysis
-    const analysis = await this.generateAnalysis(profile, {
-      grossIncome,
-      taxableIncome,
-      effectiveDeductions,
-      totalWerbungskosten,
-      calculatedTax,
-      estimatedRefund
-    });
+    const analysis = await this.generateAnalysis(
+      profile,
+      {
+        grossIncome,
+        taxableIncome,
+        effectiveDeductions,
+        totalWerbungskosten,
+        calculatedTax,
+        estimatedRefund
+      },
+      rules
+    );
 
     return {
       grossIncome,
@@ -262,7 +229,7 @@ export class AnalyzerAgent {
       totalWerbungskosten,
       totalSonderausgaben,
       totalAussergewoehnlicheBelastungen,
-      werbungskostenPauschale: WERBUNGSKOSTEN_PAUSCHALE,
+      werbungskostenPauschale: rules.credits.werbungskostenPauschale,
       effectiveDeductions,
       breakdown,
       calculatedTax: taxAfterAbsetzbetraege,
@@ -279,18 +246,21 @@ export class AnalyzerAgent {
   /**
    * Calculate detailed breakdown of all deductions
    */
-  private calculateBreakdown(profile: TaxProfile): DetailedBreakdown {
+  private calculateBreakdown(profile: TaxProfile, rules: TaxRulePack): DetailedBreakdown {
     const { deductions } = profile;
 
     // Pendlerpauschale
-    const pendler = this.calculatePendlerpauschale(deductions.pendlerpauschale);
+    const pendler = this.calculatePendlerpauschale(deductions.pendlerpauschale, rules);
 
     // Home Office
-    const homeOfficeDays = Math.min(deductions.homeOffice.days, HOME_OFFICE_MAX_DAYS);
-    const homeOfficeAmount = Math.min(homeOfficeDays * HOME_OFFICE_PER_DAY, HOME_OFFICE_MAX);
+    const homeOfficeDays = Math.min(deductions.homeOffice.days, rules.homeOffice.maxDays);
+    const homeOfficeAmount = Math.min(
+      homeOfficeDays * rules.homeOffice.perDay,
+      rules.homeOffice.maxAmount
+    );
 
-    // Church Tax (max €600)
-    const churchTaxAmount = Math.min(deductions.churchTax, CHURCH_TAX_MAX);
+    // Church Tax
+    const churchTaxAmount = Math.min(deductions.churchTax, rules.credits.churchTaxMax);
 
     // Donations (no cap, but must be to approved organizations)
     const donationsAmount = deductions.donations;
@@ -299,15 +269,18 @@ export class AnalyzerAgent {
     const medicalResult = this.calculateMedicalExpenses(
       deductions.medicalExpenses,
       profile.income.grossIncome,
-      profile
+      profile,
+      rules
     );
 
-    // Childcare (max €2300 per child under 10)
-    // Note: In shared custody (not inHousehold), only 50% is deductible per parent
+    // Childcare
     let childcareMax = 0;
+    const referenceDate = new Date(profile.taxYear, 11, 31);
     for (const child of profile.family.children) {
-      if (this.getAge(child.birthDate) < 10) {
-        childcareMax += child.inHousehold ? 2300 : 1150; // 50% for shared custody
+      if (this.getAge(child.birthDate, referenceDate) < rules.childcare.maxAge) {
+        childcareMax += child.inHousehold
+          ? rules.childcare.maxPerChild
+          : Math.round(rules.childcare.maxPerChild * rules.childcare.sharedCustodyFactor);
       }
     }
     const childcareAmount = Math.min(deductions.childcareExpenses, childcareMax);
@@ -321,7 +294,7 @@ export class AnalyzerAgent {
       homeOffice: {
         amount: homeOfficeAmount,
         days: homeOfficeDays,
-        details: `${homeOfficeDays} Tage x €${HOME_OFFICE_PER_DAY} = €${homeOfficeAmount}`
+        details: `${homeOfficeDays} Tage x EUR ${rules.homeOffice.perDay} = EUR ${homeOfficeAmount}`
       },
       workEquipment: {
         amount: deductions.workEquipment,
@@ -334,12 +307,12 @@ export class AnalyzerAgent {
       churchTax: {
         amount: churchTaxAmount,
         details: churchTaxAmount < deductions.churchTax
-          ? `Gekappt auf €${CHURCH_TAX_MAX} (Höchstbetrag)`
-          : 'Vollständig absetzbar'
+          ? `Gekappt auf EUR ${rules.credits.churchTaxMax} (Hoechstbetrag)`
+          : 'Vollstaendig absetzbar'
       },
       donations: {
         amount: donationsAmount,
-        details: 'Spenden an begünstigte Organisationen'
+        details: 'Spenden an beguenstigte Organisationen'
       },
       medicalExpenses: {
         amount: medicalResult.deductible,
@@ -348,7 +321,7 @@ export class AnalyzerAgent {
       },
       childcare: {
         amount: childcareAmount,
-        details: `Kinderbetreuung (max €2.300 pro Kind unter 10)`
+        details: `Kinderbetreuung (max EUR ${rules.childcare.maxPerChild} pro Kind unter ${rules.childcare.maxAge})`
       }
     };
   }
@@ -356,7 +329,10 @@ export class AnalyzerAgent {
   /**
    * Calculate Pendlerpauschale
    */
-  private calculatePendlerpauschale(info: PendlerInfo): {
+  private calculatePendlerpauschale(
+    info: PendlerInfo,
+    rules: TaxRulePack
+  ): {
     amount: number;
     type: 'klein' | 'gross' | 'none';
     details: string;
@@ -365,20 +341,23 @@ export class AnalyzerAgent {
       return { amount: 0, type: 'none', details: 'Entfernung unter 2 km' };
     }
 
-    const table = info.publicTransportFeasible ? PENDLERPAUSCHALE_KLEIN : PENDLERPAUSCHALE_GROSS;
+    const table = info.publicTransportFeasible
+      ? rules.pendlerpauschale.klein
+      : rules.pendlerpauschale.gross;
     const type = info.publicTransportFeasible ? 'klein' : 'gross';
 
     // Find matching bracket
     for (const bracket of table) {
-      if (info.distance >= bracket.minKm && info.distance < bracket.maxKm) {
+      const maxKm = bracket.maxKm ?? Infinity;
+      if (info.distance >= bracket.minKm && info.distance < maxKm) {
         // Pro-rate for days worked (assuming 220 work days)
         const workDays = Math.min(info.daysPerYear, 220);
         const proRatedAmount = Math.round((bracket.amount * workDays) / 220);
 
         return {
           amount: proRatedAmount,
-          type: type as 'klein' | 'gross',
-          details: `${type === 'klein' ? 'Kleine' : 'Große'} Pendlerpauschale für ${info.distance} km (${workDays} Arbeitstage)`
+          type,
+          details: `${type === 'klein' ? 'Kleine' : 'Grosse'} Pendlerpauschale fuer ${info.distance} km (${workDays} Arbeitstage)`
         };
       }
     }
@@ -392,22 +371,14 @@ export class AnalyzerAgent {
   private calculateMedicalExpenses(
     expenses: number,
     grossIncome: number,
-    profile?: TaxProfile
+    profile: TaxProfile | undefined,
+    rules: TaxRulePack
   ): { deductible: number; selfRetention: number; details: string } {
-    // Self-retention rate depends on family situation (§ 34 Abs 4 EStG)
-    // - Default: 6% of income
-    // - With disability: 0% (no self-retention)
-    // - Alleinverdiener/Alleinerzieher with 1 child: 6%
-    // - Alleinverdiener/Alleinerzieher with 2 children: 5%
-    // - Alleinverdiener/Alleinerzieher with 3+ children: 4%
-    // - More than 3 children (no Alleinverdiener): 5%
-
-    let selfRetentionRate = 0.06; // Default 6%
+    let selfRetentionRate = rules.medical.defaultSelfRetentionRate;
 
     if (profile) {
-      // Disability: no self-retention
       if (profile.personalInfo.hasDisability) {
-        selfRetentionRate = 0;
+        selfRetentionRate = rules.medical.disabilityRate;
       } else {
         const childCount = profile.family.children.length;
         const isAlleinverdienerOrAlleinerzieher =
@@ -415,13 +386,12 @@ export class AnalyzerAgent {
 
         if (isAlleinverdienerOrAlleinerzieher) {
           if (childCount >= 3) {
-            selfRetentionRate = 0.04; // 4%
+            selfRetentionRate = rules.medical.singleWithThreeOrMoreChildrenRate;
           } else if (childCount === 2) {
-            selfRetentionRate = 0.05; // 5%
+            selfRetentionRate = rules.medical.singleWithTwoChildrenRate;
           }
-          // 0 or 1 child stays at 6%
         } else if (childCount > 3) {
-          selfRetentionRate = 0.05; // 5%
+          selfRetentionRate = rules.medical.manyChildrenSelfRetentionRate;
         }
       }
     }
@@ -431,22 +401,22 @@ export class AnalyzerAgent {
 
     const rateLabel = selfRetentionRate === 0
       ? 'Kein Selbstbehalt (Behinderung)'
-      : `Selbstbehalt: €${Math.round(selfRetention)} (${selfRetentionRate * 100}% vom Einkommen)`;
+      : `Selbstbehalt: EUR ${Math.round(selfRetention)} (${(selfRetentionRate * 100).toFixed(2)}% vom Einkommen)`;
 
     return {
       deductible,
       selfRetention,
-      details: `${rateLabel}. Absetzbar: €${Math.round(deductible)}`
+      details: `${rateLabel}. Absetzbar: EUR ${Math.round(deductible)}`
     };
   }
 
   /**
-   * Calculate Absetzbeträge (tax credits)
+   * Calculate Absetzbetraege (tax credits)
    */
-  private calculateAbsetzbetraege(profile: TaxProfile): Absetzbetraege {
+  private calculateAbsetzbetraege(profile: TaxProfile, rules: TaxRulePack): Absetzbetraege {
     const absetzbetraege: Absetzbetraege = {
-      verkehrsabsetzbetrag: VERKEHRSABSETZBETRAG,
-      arbeitnehmerabsetzbetrag: ARBEITNEHMERABSETZBETRAG,
+      verkehrsabsetzbetrag: rules.credits.verkehrsabsetzbetrag,
+      arbeitnehmerabsetzbetrag: rules.credits.arbeitnehmerabsetzbetrag,
       alleinverdienerabsetzbetrag: 0,
       alleinerzieherabsetzbetrag: 0,
       kinderabsetzbetrag: 0,
@@ -456,29 +426,32 @@ export class AnalyzerAgent {
 
     // Alleinverdienerabsetzbetrag
     if (profile.family.singleEarner && profile.family.children.length > 0) {
-      absetzbetraege.alleinverdienerabsetzbetrag = 494; // + €175 per child
-      absetzbetraege.alleinverdienerabsetzbetrag += profile.family.children.length * 175;
+      absetzbetraege.alleinverdienerabsetzbetrag = this.calculateTieredFamilyCredit(
+        profile.family.children.length,
+        rules.credits.alleinverdiener
+      );
     }
 
     // Alleinerzieherabsetzbetrag
     if (profile.family.singleParent && profile.family.children.length > 0) {
-      absetzbetraege.alleinerzieherabsetzbetrag = 494; // + €175 per child
-      absetzbetraege.alleinerzieherabsetzbetrag += profile.family.children.length * 175;
+      absetzbetraege.alleinerzieherabsetzbetrag = this.calculateTieredFamilyCredit(
+        profile.family.children.length,
+        rules.credits.alleinerzieher
+      );
     }
 
     // Familienbonus Plus
-    // For children 18-24: only if receiving Familienbeihilfe (implies studying/training)
-    // The Familienbonus is limited to the actual tax liability (cannot create negative tax)
+    const referenceDate = new Date(profile.taxYear, 11, 31);
     for (const child of profile.family.children) {
-      if (child.receivingFamilyAllowance) {
-        const age = this.getAge(child.birthDate);
-        if (age < 18) {
-          absetzbetraege.familienbonus += FAMILIENBONUS_PER_CHILD;
-        } else if (age < 24) {
-          // For adult children, Familienbeihilfe is only paid if in education/training
-          // and child's own income doesn't exceed €15,000/year (2024 limit)
-          absetzbetraege.familienbonus += FAMILIENBONUS_PER_CHILD_ADULT;
-        }
+      if (!child.receivingFamilyAllowance) {
+        continue;
+      }
+
+      const age = this.getAge(child.birthDate, referenceDate);
+      if (age < 18) {
+        absetzbetraege.familienbonus += rules.credits.familienbonusPerChild;
+      } else if (age < 24) {
+        absetzbetraege.familienbonus += rules.credits.familienbonusPerChildAdult;
       }
     }
 
@@ -488,14 +461,17 @@ export class AnalyzerAgent {
   /**
    * Calculate progressive tax
    */
-  private calculateProgressiveTax(taxableIncome: number): number {
+  private calculateProgressiveTax(taxableIncome: number, rules: TaxRulePack): number {
     let tax = 0;
     let remainingIncome = taxableIncome;
 
-    for (const bracket of TAX_BRACKETS_2024) {
-      if (remainingIncome <= 0) break;
+    for (const bracket of rules.taxBrackets) {
+      if (remainingIncome <= 0) {
+        break;
+      }
 
-      const bracketRange = bracket.max - bracket.min;
+      const max = bracket.max ?? Infinity;
+      const bracketRange = max - bracket.min;
       const incomeInBracket = Math.min(remainingIncome, bracketRange);
 
       tax += incomeInBracket * bracket.rate;
@@ -517,33 +493,34 @@ export class AnalyzerAgent {
       totalWerbungskosten: number;
       calculatedTax: number;
       estimatedRefund: number;
-    }
+    },
+    rules: TaxRulePack
   ): Promise<TaxAnalysis> {
     // Determine tax bracket
-    const taxBracket = this.getTaxBracket(calculation.taxableIncome);
+    const taxBracket = this.getTaxBracket(calculation.taxableIncome, rules);
     const effectiveTaxRate =
       calculation.grossIncome > 0
         ? (calculation.calculatedTax / calculation.grossIncome) * 100
         : 0;
 
     // Generate recommendations
-    const recommendations = this.generateRecommendations(profile, calculation);
+    const recommendations = this.generateRecommendations(profile, calculation, rules);
 
     // Calculate unused potential (simplified)
-    const unusedPotential = this.calculateUnusedPotential(profile, calculation);
+    const unusedPotential = this.calculateUnusedPotential(profile, calculation, rules);
 
     try {
       // AI-enhanced summary
-      const systemPrompt = `Du bist ein österreichischer Steuerberater-Assistent.
+      const systemPrompt = `Du bist ein oesterreichischer Steuerberater-Assistent.
 Erstelle eine kurze Zusammenfassung der Steuerberechnung.
-Sei präzise und hilfsbereit. Antworte auf Deutsch.`;
+Sei praezise und hilfsbereit. Antworte auf Deutsch.`;
 
       const userPrompt = `Steuerberechnung ${profile.taxYear}:
-- Bruttoeinkommen: €${calculation.grossIncome}
-- Abzüge: €${calculation.effectiveDeductions}
-- Geschätzte Rückerstattung: €${calculation.estimatedRefund}
+- Bruttoeinkommen: EUR ${calculation.grossIncome}
+- Abzuege: EUR ${calculation.effectiveDeductions}
+- Geschaetzte Rueckerstattung: EUR ${calculation.estimatedRefund}
 
-Erstelle eine 2-3 Sätze Zusammenfassung.`;
+Erstelle eine 2-3 Saetze Zusammenfassung.`;
 
       const response = await llmService.query(userPrompt, [], systemPrompt);
 
@@ -558,7 +535,7 @@ Erstelle eine 2-3 Sätze Zusammenfassung.`;
     } catch {
       // Fallback summary
       return {
-        summary: `Bei einem Bruttoeinkommen von €${calculation.grossIncome.toLocaleString('de-AT')} und Abzügen von €${calculation.effectiveDeductions.toLocaleString('de-AT')} ergibt sich eine geschätzte Rückerstattung von €${calculation.estimatedRefund.toLocaleString('de-AT')}.`,
+        summary: `Bei einem Bruttoeinkommen von EUR ${calculation.grossIncome.toLocaleString('de-AT')} und Abzuegen von EUR ${calculation.effectiveDeductions.toLocaleString('de-AT')} ergibt sich eine geschaetzte Rueckerstattung von EUR ${calculation.estimatedRefund.toLocaleString('de-AT')}.`,
         taxBracket,
         effectiveTaxRate: Math.round(effectiveTaxRate * 100) / 100,
         unusedPotential,
@@ -571,10 +548,12 @@ Erstelle eine 2-3 Sätze Zusammenfassung.`;
   /**
    * Get tax bracket description
    */
-  private getTaxBracket(taxableIncome: number): string {
-    for (const bracket of TAX_BRACKETS_2024) {
-      if (taxableIncome >= bracket.min && taxableIncome < bracket.max) {
-        return `${bracket.rate * 100}% Grenzsteuersatz (€${bracket.min.toLocaleString('de-AT')} - €${bracket.max === Infinity ? '∞' : bracket.max.toLocaleString('de-AT')})`;
+  private getTaxBracket(taxableIncome: number, rules: TaxRulePack): string {
+    for (const bracket of rules.taxBrackets) {
+      const max = bracket.max ?? Infinity;
+      if (taxableIncome >= bracket.min && taxableIncome < max) {
+        const upperLabel = max === Infinity ? 'infinity' : max.toLocaleString('de-AT');
+        return `${bracket.rate * 100}% Grenzsteuersatz (EUR ${bracket.min.toLocaleString('de-AT')} - EUR ${upperLabel})`;
       }
     }
     return 'Unbekannt';
@@ -585,39 +564,43 @@ Erstelle eine 2-3 Sätze Zusammenfassung.`;
    */
   private generateRecommendations(
     profile: TaxProfile,
-    calculation: { totalWerbungskosten: number; grossIncome: number }
+    calculation: { totalWerbungskosten: number; grossIncome: number },
+    rules: TaxRulePack
   ): Recommendation[] {
     const recommendations: Recommendation[] = [];
 
     // Check if using Pauschale
-    if (calculation.totalWerbungskosten < WERBUNGSKOSTEN_PAUSCHALE) {
+    if (calculation.totalWerbungskosten < rules.credits.werbungskostenPauschale) {
       recommendations.push({
         category: 'Werbungskosten',
-        title: 'Werbungskosten erhöhen',
-        description: `Ihre Werbungskosten (€${calculation.totalWerbungskosten}) liegen unter der Pauschale von €${WERBUNGSKOSTEN_PAUSCHALE}. Sammeln Sie mehr Belege für berufliche Ausgaben.`,
-        potentialSavings: (WERBUNGSKOSTEN_PAUSCHALE - calculation.totalWerbungskosten) * 0.4,
+        title: 'Werbungskosten erhoehen',
+        description: `Ihre Werbungskosten (EUR ${calculation.totalWerbungskosten}) liegen unter der Pauschale von EUR ${rules.credits.werbungskostenPauschale}. Sammeln Sie mehr Belege fuer berufliche Ausgaben.`,
+        potentialSavings: (rules.credits.werbungskostenPauschale - calculation.totalWerbungskosten) * 0.4,
         priority: 'high'
       });
     }
 
     // Home Office
-    if (profile.deductions.homeOffice.days < 100) {
-      const additionalDays = 100 - profile.deductions.homeOffice.days;
+    if (profile.deductions.homeOffice.days < rules.homeOffice.maxDays) {
+      const additionalDays = rules.homeOffice.maxDays - profile.deductions.homeOffice.days;
       recommendations.push({
         category: 'Home Office',
-        title: 'Home Office Tage prüfen',
-        description: `Sie haben ${profile.deductions.homeOffice.days} Home Office Tage angegeben. Falls Sie mehr hatten, können Sie bis zu ${additionalDays} weitere Tage geltend machen.`,
-        potentialSavings: additionalDays * HOME_OFFICE_PER_DAY * 0.4,
+        title: 'Home Office Tage pruefen',
+        description: `Sie haben ${profile.deductions.homeOffice.days} Home Office Tage angegeben. Falls Sie mehr hatten, koennen Sie bis zu ${additionalDays} weitere Tage geltend machen.`,
+        potentialSavings: additionalDays * rules.homeOffice.perDay * 0.4,
         priority: 'medium'
       });
     }
 
     // Pendlerpauschale
-    if (profile.deductions.pendlerpauschale.distance > 0 && profile.deductions.pendlerpauschale.publicTransportFeasible) {
+    if (
+      profile.deductions.pendlerpauschale.distance > 0 &&
+      profile.deductions.pendlerpauschale.publicTransportFeasible
+    ) {
       recommendations.push({
         category: 'Pendlerpauschale',
-        title: 'Große Pendlerpauschale prüfen',
-        description: 'Wenn öffentliche Verkehrsmittel unzumutbar sind (z.B. Fahrtzeit > 2,5 Std.), können Sie die höhere große Pendlerpauschale beantragen.',
+        title: 'Grosse Pendlerpauschale pruefen',
+        description: 'Wenn oeffentliche Verkehrsmittel unzumutbar sind (z.B. Fahrtzeit > 2,5 Std.), koennen Sie die hoehere grosse Pendlerpauschale beantragen.',
         potentialSavings: 500,
         priority: 'medium'
       });
@@ -628,7 +611,7 @@ Erstelle eine 2-3 Sätze Zusammenfassung.`;
       recommendations.push({
         category: 'Sonderausgaben',
         title: 'Spenden absetzbar',
-        description: 'Spenden an begünstigte Organisationen sind bis zu 10% des Einkommens absetzbar.',
+        description: 'Spenden an beguenstigte Organisationen sind bis zu 10% des Einkommens absetzbar.',
         potentialSavings: 0,
         priority: 'low'
       });
@@ -642,19 +625,21 @@ Erstelle eine 2-3 Sätze Zusammenfassung.`;
    */
   private calculateUnusedPotential(
     profile: TaxProfile,
-    calculation: { totalWerbungskosten: number }
+    calculation: { totalWerbungskosten: number },
+    rules: TaxRulePack
   ): number {
     let potential = 0;
 
     // Unused Home Office
-    if (profile.deductions.homeOffice.days < 100) {
-      potential += (100 - profile.deductions.homeOffice.days) * HOME_OFFICE_PER_DAY;
+    if (profile.deductions.homeOffice.days < rules.homeOffice.maxDays) {
+      potential +=
+        (rules.homeOffice.maxDays - profile.deductions.homeOffice.days) * rules.homeOffice.perDay;
     }
 
     // Check if basic deduction categories are underutilized
     // (no assumed averages - only check if common deductions are at zero)
     if (calculation.totalWerbungskosten === 0) {
-      potential += 500; // Rough potential if no Werbungskosten claimed at all
+      potential += 500;
     }
 
     return potential;
@@ -677,28 +662,43 @@ Erstelle eine 2-3 Sätze Zusammenfassung.`;
 
     if (calculation.estimatedRefund > 5000) {
       warnings.push(
-        'Hohe geschätzte Rückerstattung - bitte prüfen Sie alle Angaben sorgfältig.'
+        'Hohe geschaetzte Rueckerstattung - bitte pruefen Sie alle Angaben sorgfaeltig.'
       );
     }
 
     if (profile.deductions.medicalExpenses > profile.income.grossIncome * 0.1) {
       warnings.push(
-        'Hohe Krankheitskosten - bewahren Sie alle Belege für eine eventuelle Prüfung auf.'
+        'Hohe Krankheitskosten - bewahren Sie alle Belege fuer eine eventuelle Pruefung auf.'
       );
     }
 
     return warnings;
   }
 
+  private calculateTieredFamilyCredit(childCount: number, credit: TieredFamilyCredit): number {
+    if (childCount <= 0) {
+      return 0;
+    }
+
+    let total = credit.firstChild;
+    if (childCount >= 2) {
+      total += credit.secondChildIncrement;
+    }
+    if (childCount >= 3) {
+      total += (childCount - 2) * credit.additionalChildIncrement;
+    }
+
+    return total;
+  }
+
   /**
    * Helper: Calculate age from birth date
    */
-  private getAge(birthDate: string): number {
+  private getAge(birthDate: string, atDate: Date = new Date()): number {
     const birth = new Date(birthDate);
-    const today = new Date();
-    let age = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    let age = atDate.getFullYear() - birth.getFullYear();
+    const monthDiff = atDate.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && atDate.getDate() < birth.getDate())) {
       age--;
     }
     return age;

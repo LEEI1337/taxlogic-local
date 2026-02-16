@@ -10,6 +10,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AnalyzerAgent, TaxProfile } from '../../src/backend/agents/analyzerAgent';
+import { getTaxRulesForYear } from '../../src/backend/taxRules';
 
 // Mock the LLM service
 vi.mock('../../src/backend/services/llmService', () => ({
@@ -24,6 +25,7 @@ vi.mock('../../src/backend/services/llmService', () => ({
 
 describe('AnalyzerAgent', () => {
   let agent: AnalyzerAgent;
+  const rules2024 = getTaxRulesForYear(2024);
 
   beforeEach(() => {
     agent = new AnalyzerAgent();
@@ -95,8 +97,7 @@ describe('AnalyzerAgent', () => {
 
       const result = await agent.calculateTax(profile);
 
-      // Income below 11693 should have 0% tax rate
-      expect(result.taxableIncome).toBeLessThan(11693);
+      expect(result.taxableIncome).toBeLessThan(rules2024.taxBrackets[0].max!);
       expect(result.calculatedTax).toBe(0);
     });
 
@@ -246,8 +247,7 @@ describe('AnalyzerAgent', () => {
       const profile = createBaseProfile();
       const result = await agent.calculateTax(profile);
 
-      // Verkehrsabsetzbetrag is €463 for 2024
-      expect(result.absetzbetraege.verkehrsabsetzbetrag).toBe(463);
+      expect(result.absetzbetraege.verkehrsabsetzbetrag).toBe(rules2024.credits.verkehrsabsetzbetrag);
     });
 
     it('should calculate Familienbonus for children under 18', async () => {
@@ -290,8 +290,7 @@ describe('AnalyzerAgent', () => {
 
       const result = await agent.calculateTax(profile);
 
-      // Familienbonus is €650 for children 18-24
-      expect(result.absetzbetraege.familienbonus).toBe(650);
+      expect(result.absetzbetraege.familienbonus).toBe(rules2024.credits.familienbonusPerChildAdult);
     });
 
     it('should calculate Alleinerzieherabsetzbetrag for single parents', async () => {
@@ -312,8 +311,9 @@ describe('AnalyzerAgent', () => {
 
       const result = await agent.calculateTax(profile);
 
-      // Base €494 + €175 per child = €669
-      expect(result.absetzbetraege.alleinerzieherabsetzbetrag).toBe(669);
+      expect(result.absetzbetraege.alleinerzieherabsetzbetrag).toBe(
+        rules2024.credits.alleinerzieher.firstChild
+      );
     });
   });
 

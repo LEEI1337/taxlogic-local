@@ -1,0 +1,18 @@
+{
+  "year": 2026,
+  "capturedAt": "2026-02-10",
+  "sources": [
+    "https://www.bmf.gv.at/themen/steuern/arbeitnehmerinnenveranlagung/steuertarif-absetzbetrage.html",
+    "https://www.bmf.gv.at/presse/pressemeldungen/2025/dezember/einkommensteuertarif-und-absetzbetrag-2026.html"
+  ],
+  "assertions": [
+    { "path": "taxBrackets[0].max", "equals": 13539 },
+    { "path": "taxBrackets[1].max", "equals": 21991 },
+    { "path": "taxBrackets[2].max", "equals": 36458 },
+    { "path": "taxBrackets[3].max", "equals": 70365 },
+    { "path": "taxBrackets[4].max", "equals": 104858 },
+    { "path": "credits.verkehrsabsetzbetrag", "equals": 495 },
+    { "path": "credits.familienbonusPerChildAdult", "equals": 700 },
+    { "path": "credits.alleinverdiener.firstChild", "equals": 611 }
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "year": 2025,
+  "version": "2025.2",
+  "verifiedAt": "2026-02-10",
+  "staleAfterDays": 35,
+  "metadata": {
+    "lawYear": 2025,
+    "verificationStatus": "official",
+    "notes": "BMF tariff and credits tables as of 2026-02-10",
+    "sources": [
+      "https://www.bmf.gv.at/presse/pressemeldungen/2024/dezember/einkommensteuertarif-steuerabsetzbetrag-2025.html",
+      "https://www.bmf.gv.at/themen/steuern/arbeitnehmerinnenveranlagung/steuerabsetzbetrage.html",
+      "https://www.bmf.gv.at/themen/steuern/arbeitnehmerinnenveranlagung/pendlerpauschale-pendlereuro.html"
+    ]
+  },
+  "taxBrackets": [
+    { "min": 0, "max": 13308, "rate": 0 },
+    { "min": 13308, "max": 21617, "rate": 0.2 },
+    { "min": 21617, "max": 35836, "rate": 0.3 },
+    { "min": 35836, "max": 69166, "rate": 0.4 },
+    { "min": 69166, "max": 103072, "rate": 0.48 },
+    { "min": 103072, "max": 1000000, "rate": 0.5 },
+    { "min": 1000000, "max": null, "rate": 0.55 }
+  ],
+  "credits": {
+    "werbungskostenPauschale": 132,
+    "verkehrsabsetzbetrag": 487,
+    "arbeitnehmerabsetzbetrag": 500,
+    "churchTaxMax": 600,
+    "familienbonusPerChild": 2000,
+    "familienbonusPerChildAdult": 700,
+    "alleinverdiener": {
+      "firstChild": 601,
+      "secondChildIncrement": 212,
+      "additionalChildIncrement": 268
+    },
+    "alleinerzieher": {
+      "firstChild": 601,
+      "secondChildIncrement": 212,
+      "additionalChildIncrement": 268
+    }
+  },
+  "homeOffice": {
+    "perDay": 3,
+    "maxAmount": 300,
+    "maxDays": 100
+  },
+  "childcare": {
+    "maxPerChild": 2300,
+    "sharedCustodyFactor": 0.5,
+    "maxAge": 10
+  },
+  "medical": {
+    "defaultSelfRetentionRate": 0.06,
+    "manyChildrenSelfRetentionRate": 0.05,
+    "singleWithTwoChildrenRate": 0.05,
+    "singleWithThreeOrMoreChildrenRate": 0.04,
+    "disabilityRate": 0
+  },
+  "pendlerpauschale": {
+    "klein": [
+      { "minKm": 20, "maxKm": 40, "amount": 696 },
+      { "minKm": 40, "maxKm": 60, "amount": 1356 },
+      { "minKm": 60, "maxKm": null, "amount": 2016 }
+    ],
+    "gross": [
+      { "minKm": 2, "maxKm": 20, "amount": 372 },
+      { "minKm": 20, "maxKm": 40, "amount": 1476 },
+      { "minKm": 40, "maxKm": 60, "amount": 2568 },
+      { "minKm": 60, "maxKm": null, "amount": 3672 }
+    ]
+  }
+}

@@ -19,6 +19,7 @@ import { embeddingsService } from './embeddings';
 export interface RAGQuery {
   question: string;
   category?: KnowledgeCategory;
+  taxYear?: number;
   maxContextTokens?: number;
   includeSourceCitations?: boolean;
   conversationHistory?: Message[];
@@ -29,6 +30,7 @@ export interface RAGResponse {
   sources: SourceCitation[];
   confidence: number;
   context: string;
+  warnings: string[];
   processingTime: number;
 }
 
@@ -37,6 +39,8 @@ export interface SourceCitation {
   source: string;
   excerpt: string;
   relevance: number;
+  sourceYear: number;
+  lawYear: number;
 }
 
 export interface RetrievalStats {
@@ -63,6 +67,7 @@ export class RetrieverService {
     const {
       question,
       category,
+      taxYear,
       maxContextTokens = 2000,
       includeSourceCitations = true,
       conversationHistory = []
@@ -81,8 +86,21 @@ export class RetrieverService {
       title: result.chunk.metadata.title,
       source: result.document.source,
       excerpt: result.chunk.content.substring(0, 150) + '...',
-      relevance: Math.round(result.similarity * 100) / 100
+      relevance: Math.round(result.similarity * 100) / 100,
+      sourceYear: result.chunk.metadata.sourceYear,
+      lawYear: result.chunk.metadata.lawYear
     }));
+
+    const warnings: string[] = [];
+    if (typeof taxYear === 'number') {
+      const mismatchedSources = sources.filter((source) => source.sourceYear !== taxYear);
+      if (mismatchedSources.length > 0) {
+        const uniqueYears = Array.from(new Set(mismatchedSources.map((source) => source.sourceYear))).sort();
+        warnings.push(
+          `Wissensbasis-Jahreskonflikt: aktives Steuerjahr ${taxYear}, gefundene Quellenjahre ${uniqueYears.join(', ')}`
+        );
+      }
+    }
 
     // Step 4: Generate answer using LLM with context
     const systemPrompt = this.buildSystemPrompt(includeSourceCitations);
@@ -103,6 +121,7 @@ export class RetrieverService {
       sources: includeSourceCitations ? sources : [],
       confidence,
       context,
+      warnings,
       processingTime
     };
   }

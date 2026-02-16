@@ -1,14 +1,16 @@
-/**
+﻿/**
  * TaxLogic.local - Knowledge Base Service
  *
  * Vector store for Austrian tax law knowledge:
+ * - Year-versioned default knowledge loading
  * - Document ingestion and chunking
- * - Vector storage (in-memory or Qdrant)
  * - Semantic search
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
+
+import { getConfigRoot } from '../taxRules/loader';
 
 import { embeddingsService } from './embeddings';
 
@@ -51,6 +53,8 @@ export interface ChunkMetadata {
   source: string;
   chunkIndex: number;
   totalChunks: number;
+  sourceYear: number;
+  lawYear: number;
 }
 
 export interface SearchResult {
@@ -64,197 +68,56 @@ export interface KnowledgeBaseStats {
   totalChunks: number;
   categories: Record<KnowledgeCategory, number>;
   lastUpdated: string;
+  activeYear: number | null;
 }
 
-// ========================================
-// Default Austrian Tax Knowledge
-// ========================================
+interface ParsedKnowledgeFile {
+  title: string;
+  source: string;
+  category: KnowledgeCategory;
+  content: string;
+  sourceYear: number;
+  metadata: Record<string, unknown>;
+}
 
-const DEFAULT_KNOWLEDGE: Omit<KnowledgeDocument, 'id' | 'createdAt'>[] = [
-  {
-    title: 'Werbungskosten - Grundlagen',
-    content: `Werbungskosten sind alle Aufwendungen zur Erwerbung, Sicherung und Erhaltung von Einnahmen aus nichtselbständiger Arbeit.
-
-Wichtige Kategorien von Werbungskosten:
-1. Pendlerpauschale - Fahrtkosten zur Arbeit
-2. Arbeitsmittel - Computer, Software, Fachliteratur
-3. Fortbildungskosten - Kurse, Seminare, Studium
-4. Home Office Pauschale - bis zu €300 pro Jahr
-5. Reisekosten - berufliche Reisen
-6. Doppelte Haushaltsführung
-
-Die Werbungskostenpauschale beträgt €132 pro Jahr und wird automatisch berücksichtigt.
-Höhere Werbungskosten müssen nachgewiesen werden.`,
-    source: 'Einkommensteuergesetz §16',
-    category: 'werbungskosten',
-    metadata: { year: 2024 }
-  },
-  {
-    title: 'Pendlerpauschale - Berechnung',
-    content: `Die Pendlerpauschale ist eine Pauschale für Fahrten zwischen Wohnung und Arbeitsstätte.
-
-Kleine Pendlerpauschale (öffentliche Verkehrsmittel zumutbar):
-- 20-40 km: €696 pro Jahr
-- 40-60 km: €1.356 pro Jahr
-- über 60 km: €2.016 pro Jahr
-
-Große Pendlerpauschale (öffentliche Verkehrsmittel nicht zumutbar):
-- 2-20 km: €372 pro Jahr
-- 20-40 km: €1.476 pro Jahr
-- 40-60 km: €2.568 pro Jahr
-- über 60 km: €3.672 pro Jahr
-
-Unzumutbarkeit liegt vor wenn:
-- Keine öffentlichen Verkehrsmittel verfügbar
-- Gesamtfahrzeit (hin und retour) über 2,5 Stunden
-- Gehbehinderung oder andere zwingende Gründe
-
-Nachweis über den Pendlerrechner auf bmf.gv.at.`,
-    source: 'Pendlerförderungsgesetz',
-    category: 'pendlerpauschale',
-    metadata: { year: 2024 }
-  },
-  {
-    title: 'Home Office Pauschale',
-    content: `Die Home Office Pauschale gilt für Arbeit im privaten Wohnbereich.
-
-Voraussetzungen:
-- Arbeitgeber hat Home Office angeordnet oder vereinbart
-- Kein eigenes Arbeitszimmer
-
-Höhe der Pauschale:
-- €3 pro Home Office Tag
-- Maximum €300 pro Jahr (entspricht 100 Tagen)
-
-Zusätzlich absetzbar:
-- Ergonomische Möbel (Schreibtisch, Bürostuhl) bis €300
-- Digitale Arbeitsmittel (anteilig)
-
-Nachweis:
-- Bestätigung des Arbeitgebers
-- Aufzeichnung der Home Office Tage
-
-Die Home Office Pauschale zählt zu den Werbungskosten.`,
-    source: 'Einkommensteuergesetz §16 Abs. 1 Z 7a',
-    category: 'homeoffice',
-    metadata: { year: 2024 }
-  },
-  {
-    title: 'Sonderausgaben',
-    content: `Sonderausgaben sind bestimmte private Ausgaben, die steuerlich begünstigt sind.
-
-Wichtige Sonderausgaben:
-1. Kirchenbeitrag - max. €600 pro Jahr
-2. Spenden an begünstigte Organisationen - bis 10% des Einkommens
-3. Freiwillige Weiterversicherung in der Pensionsversicherung
-4. Nachkauf von Versicherungszeiten
-
-Besonderheiten:
-- Kirchenbeitrag und Spenden werden meist automatisch gemeldet
-- Prüfen Sie den Databoxauszug auf korrekte Übermittlung
-- Topfsonderausgaben (Versicherungen) laufen 2025 aus`,
-    source: 'Einkommensteuergesetz §18',
-    category: 'sonderausgaben',
-    metadata: { year: 2024 }
-  },
-  {
-    title: 'Familienbonus Plus',
-    content: `Der Familienbonus Plus ist ein Steuerabsetzbetrag für Kinder.
-
-Höhe des Familienbonus Plus:
-- Kinder bis 18 Jahre: €2.000 pro Kind und Jahr
-- Kinder ab 18 Jahre (mit Familienbeihilfe): €650 pro Kind und Jahr
-
-Voraussetzungen:
-- Anspruch auf Familienbeihilfe
-- Das Kind lebt im Haushalt oder es werden Unterhaltszahlungen geleistet
-
-Aufteilung:
-- Kann zwischen Eltern aufgeteilt werden
-- 100% / 0% oder 50% / 50%
-- Monatsgenaue Aufteilung möglich
-
-Der Familienbonus wird direkt von der Steuerschuld abgezogen (Steuerabsetzbetrag).`,
-    source: 'Einkommensteuergesetz §33 Abs. 3a',
-    category: 'familienbonus',
-    metadata: { year: 2024 }
-  },
-  {
-    title: 'Außergewöhnliche Belastungen - Krankheitskosten',
-    content: `Krankheitskosten können als außergewöhnliche Belastung geltend gemacht werden.
-
-Absetzbare Kosten:
-- Arztkosten und Behandlungen
-- Medikamente und Heilbehelfe
-- Spitalskosten
-- Fahrtkosten zu Behandlungen
-- Brillen und Kontaktlinsen
-- Zahnbehandlungen und Zahnersatz
-
-Selbstbehalt:
-Je nach Einkommen und Familiensituation muss ein Selbstbehalt überschritten werden:
-- 6-12% des Einkommens (je nach Situation)
-- Bei Behinderung entfällt der Selbstbehalt
-
-Wichtig: Kosten, die von der Krankenkasse oder Versicherung erstattet wurden, können nicht abgesetzt werden.`,
-    source: 'Einkommensteuergesetz §34',
-    category: 'allgemein',
-    metadata: { year: 2024 }
-  },
-  {
-    title: 'FinanzOnline - Arbeitnehmerveranlagung',
-    content: `FinanzOnline ist das elektronische Portal des Finanzamts für Steuererklärungen.
-
-Zugang zu FinanzOnline:
-- Mit Handysignatur / ID Austria
-- Mit FinanzOnline-Zugangsdaten
-- Erstanmeldung: Aktivierungscode per Post
-
-Arbeitnehmerveranlagung einreichen:
-1. Anmelden bei finanzonline.bmf.gv.at
-2. "Eingaben" > "Erklärungen" > "Arbeitnehmerveranlagung (L1)"
-3. Jahr auswählen
-4. Daten eingeben oder automatische Übernahme nutzen
-5. Prüfen und absenden
-
-Fristen:
-- Freiwillige Veranlagung: bis 5 Jahre rückwirkend
-- Pflichtveranlagung: bis 30. September des Folgejahres
-
-Tipp: Nutzen Sie die Vorausfüllung - viele Daten sind bereits hinterlegt.`,
-    source: 'BMF Finanzamt',
-    category: 'finanzamt',
-    metadata: { year: 2024 }
-  },
-  {
-    title: 'Formulare L1, L1ab, L1k',
-    content: `Die wichtigsten Formulare für die Arbeitnehmerveranlagung:
-
-L1 - Arbeitnehmerveranlagung (Hauptformular):
-- Persönliche Daten
-- Werbungskosten
-- Sonderausgaben
-- Außergewöhnliche Belastungen
-- Bankverbindung
-
-L1ab - Beilage für zusätzliche Einkünfte:
-- Einkünfte aus selbstständiger Arbeit
-- Einkünfte aus Vermietung
-- Kapitaleinkünfte
-- Nur erforderlich bei Nebeneinkünften
-
-L1k - Beilage für Kinder:
-- Angaben zu Kindern
-- Familienbonus Plus
-- Kinderbetreuungskosten
-- Alleinverdiener/Alleinerzieher
-
-Die Formulare können elektronisch über FinanzOnline oder als PDF eingereicht werden.`,
-    source: 'BMF Formulare',
-    category: 'formulare',
-    metadata: { year: 2024 }
-  }
+const VALID_CATEGORIES: KnowledgeCategory[] = [
+  'einkommensteuergesetz',
+  'werbungskosten',
+  'sonderausgaben',
+  'pendlerpauschale',
+  'homeoffice',
+  'familienbonus',
+  'finanzamt',
+  'formulare',
+  'allgemein'
 ];
+
+function isKnowledgeCategory(value: string): value is KnowledgeCategory {
+  return VALID_CATEGORIES.includes(value as KnowledgeCategory);
+}
+
+function getDefaultTaxYear(): number {
+  return new Date().getFullYear() - 1;
+}
+
+function parseMetadataLine(
+  line: string,
+  metadata: Record<string, unknown>
+): void {
+  const separatorIndex = line.indexOf(':');
+  if (separatorIndex === -1) {
+    return;
+  }
+
+  const key = line.slice(0, separatorIndex).trim().toLowerCase();
+  const value = line.slice(separatorIndex + 1).trim();
+
+  if (key.length === 0 || value.length === 0) {
+    return;
+  }
+
+  metadata[key] = value;
+}
 
 // ========================================
 // Knowledge Base Service Class
@@ -264,45 +127,65 @@ export class KnowledgeBaseService {
   private documents: Map<string, KnowledgeDocument> = new Map();
   private chunks: Map<string, KnowledgeChunk> = new Map();
   private knowledgePath: string;
-  private initialized: boolean = false;
+  private initialized = false;
+  private activeYear: number | null = null;
 
   constructor() {
     this.knowledgePath = path.join(process.cwd(), 'data', 'knowledge');
   }
 
   /**
-   * Initialize the knowledge base
+   * Initialize the knowledge base for a given tax year.
    */
-  async initialize(): Promise<void> {
-    if (this.initialized) return;
+  async initialize(year: number = getDefaultTaxYear()): Promise<void> {
+    if (this.initialized && this.activeYear === year) {
+      return;
+    }
 
-    console.log('[KnowledgeBase] Initializing...');
+    this.clearInternal();
+    this.activeYear = year;
 
-    // Ensure directory exists
+    // Ensure custom knowledge directory exists
     if (!fs.existsSync(this.knowledgePath)) {
       fs.mkdirSync(this.knowledgePath, { recursive: true });
     }
 
-    // Load default knowledge
-    for (const doc of DEFAULT_KNOWLEDGE) {
-      await this.addDocument(doc);
-    }
-
-    // Load custom knowledge files from disk
-    await this.loadFromDisk();
+    await this.loadYearKnowledgeFromConfig(year);
+    await this.loadCustomKnowledgeFromDisk(year);
 
     this.initialized = true;
-    console.log(`[KnowledgeBase] Initialized with ${this.documents.size} documents, ${this.chunks.size} chunks`);
+    console.log(
+      `[KnowledgeBase] Initialized for ${year} with ${this.documents.size} documents, ${this.chunks.size} chunks`
+    );
+  }
+
+  /**
+   * Explicit year switch helper.
+   */
+  async switchYear(year: number): Promise<void> {
+    await this.initialize(year);
+  }
+
+  getActiveYear(): number | null {
+    return this.activeYear;
   }
 
   /**
    * Add a document to the knowledge base
    */
   async addDocument(input: Omit<KnowledgeDocument, 'id' | 'createdAt'>): Promise<KnowledgeDocument> {
+    const sourceYear = Number(input.metadata.sourceYear ?? this.activeYear ?? getDefaultTaxYear());
+    const lawYear = Number(input.metadata.lawYear ?? sourceYear);
+
     const doc: KnowledgeDocument = {
       ...input,
       id: `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      metadata: {
+        ...input.metadata,
+        sourceYear,
+        lawYear
+      }
     };
 
     this.documents.set(doc.id, doc);
@@ -325,14 +208,14 @@ export class KnowledgeBaseService {
           category: doc.category,
           source: doc.source,
           chunkIndex: i,
-          totalChunks: textChunks.length
+          totalChunks: textChunks.length,
+          sourceYear,
+          lawYear
         }
       };
 
       this.chunks.set(chunk.id, chunk);
     }
-
-    console.log(`[KnowledgeBase] Added document: ${doc.title} (${textChunks.length} chunks)`);
 
     return doc;
   }
@@ -361,9 +244,7 @@ export class KnowledgeBaseService {
     }));
 
     // Sort and take top K
-    const topResults = similarities
-      .sort((a, b) => b.similarity - a.similarity)
-      .slice(0, topK);
+    const topResults = similarities.sort((a, b) => b.similarity - a.similarity).slice(0, topK);
 
     // Add document info to results
     return topResults.map((result) => ({
@@ -384,9 +265,11 @@ export class KnowledgeBaseService {
 
     for (const result of results) {
       const chunkText = `### ${result.chunk.metadata.title}\n${result.chunk.content}\n\n`;
-      const chunkTokens = Math.ceil(chunkText.length / 4); // Rough estimate
+      const chunkTokens = Math.ceil(chunkText.length / 4);
 
-      if (currentTokens + chunkTokens > maxTokens) break;
+      if (currentTokens + chunkTokens > maxTokens) {
+        break;
+      }
 
       context += chunkText;
       currentTokens += chunkTokens;
@@ -434,11 +317,103 @@ export class KnowledgeBaseService {
     return chunks;
   }
 
+  private async loadYearKnowledgeFromConfig(year: number): Promise<void> {
+    const configRoot = getConfigRoot();
+    const yearDirectory = path.join(configRoot, 'tax-knowledge', String(year));
+
+    if (!fs.existsSync(yearDirectory)) {
+      throw new Error(
+        `Missing tax knowledge package for year ${year}: ${yearDirectory}. Run tax-rules:sync-rag.`
+      );
+    }
+
+    const files = fs.readdirSync(yearDirectory).filter((file) => file.endsWith('.md'));
+    if (files.length === 0) {
+      throw new Error(
+        `No markdown knowledge files found for year ${year} in ${yearDirectory}.`
+      );
+    }
+
+    for (const file of files) {
+      const filePath = path.join(yearDirectory, file);
+      const raw = fs.readFileSync(filePath, 'utf-8');
+      const parsed = this.parseMarkdownKnowledgeFile(raw, file, year);
+
+      await this.addDocument({
+        title: parsed.title,
+        content: parsed.content,
+        source: parsed.source,
+        category: parsed.category,
+        metadata: parsed.metadata
+      });
+    }
+  }
+
+  private parseMarkdownKnowledgeFile(
+    raw: string,
+    filename: string,
+    year: number
+  ): ParsedKnowledgeFile {
+    const lines = raw.split(/\r?\n/);
+
+    let lineIndex = 0;
+    let title = filename;
+    if (lines[0]?.startsWith('#')) {
+      title = lines[0].replace(/^#+\s*/, '').trim() || filename;
+      lineIndex = 1;
+    }
+
+    const metadata: Record<string, unknown> = {
+      file: filename,
+      sourceYear: year,
+      lawYear: year
+    };
+
+    while (lineIndex < lines.length) {
+      const line = lines[lineIndex].trim();
+      if (!line) {
+        lineIndex++;
+        break;
+      }
+
+      parseMetadataLine(line, metadata);
+      lineIndex++;
+    }
+
+    const source = typeof metadata.source === 'string' ? metadata.source : filename;
+    const categoryCandidate =
+      typeof metadata.category === 'string'
+        ? metadata.category.toLowerCase().trim()
+        : 'allgemein';
+    const category = isKnowledgeCategory(categoryCandidate)
+      ? categoryCandidate
+      : 'allgemein';
+
+    const yearFromMetadata = Number(metadata.year);
+    if (!Number.isNaN(yearFromMetadata) && yearFromMetadata > 0) {
+      metadata.sourceYear = yearFromMetadata;
+      metadata.lawYear = yearFromMetadata;
+    }
+
+    const body = lines.slice(lineIndex).join('\n').trim();
+
+    return {
+      title,
+      source,
+      category,
+      content: body,
+      sourceYear: year,
+      metadata
+    };
+  }
+
   /**
-   * Load knowledge from disk
+   * Load custom knowledge files from data/knowledge.
    */
-  private async loadFromDisk(): Promise<void> {
-    if (!fs.existsSync(this.knowledgePath)) return;
+  private async loadCustomKnowledgeFromDisk(year: number): Promise<void> {
+    if (!fs.existsSync(this.knowledgePath)) {
+      return;
+    }
 
     const files = fs.readdirSync(this.knowledgePath);
 
@@ -458,7 +433,7 @@ export class KnowledgeBaseService {
             content: body,
             source: file,
             category: 'allgemein',
-            metadata: { file }
+            metadata: { file, sourceYear: year, lawYear: year }
           });
         } catch (error) {
           console.error(`[KnowledgeBase] Error loading ${file}:`, error);
@@ -491,7 +466,8 @@ export class KnowledgeBaseService {
       totalDocuments: this.documents.size,
       totalChunks: this.chunks.size,
       categories,
-      lastUpdated: new Date().toISOString()
+      lastUpdated: new Date().toISOString(),
+      activeYear: this.activeYear
     };
   }
 
@@ -528,9 +504,14 @@ export class KnowledgeBaseService {
    * Clear all knowledge
    */
   clear(): void {
+    this.clearInternal();
+    this.activeYear = null;
+    this.initialized = false;
+  }
+
+  private clearInternal(): void {
     this.documents.clear();
     this.chunks.clear();
-    this.initialized = false;
   }
 }
 

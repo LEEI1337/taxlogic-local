@@ -18,7 +18,13 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:e2e": "playwright test",
-    "postinstall": "electron-rebuild"
+    "tax-rules:check": "tsx scripts/tax-rules/check.ts",
+    "tax-rules:verify": "tsx scripts/tax-rules/verify.ts",
+    "tax-rules:init-year": "tsx scripts/tax-rules/init-year.ts",
+    "tax-rules:report": "tsx scripts/tax-rules/report.ts",
+    "tax-rules:sync-rag": "tsx scripts/tax-rules/sync-rag.ts",
+    "tax-rules:doctor": "tsx scripts/tax-rules/doctor.ts",
+    "postinstall": "node ./node_modules/@electron/rebuild/lib/cli.js"
   },
   "keywords": [
     "tax",
@@ -45,14 +51,12 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.31.0",
     "@electron/remote": "^2.1.2",
-    "@langchain/community": "^0.3.0",
-    "@langchain/core": "^0.3.0",
-    "@langchain/langgraph": "^0.2.0",
+    "@langchain/core": "^1.1.24",
+    "@langchain/langgraph": "^1.1.4",
     "@qdrant/js-client-rest": "^1.8.0",
-    "axios": "^1.6.7",
+    "axios": "^1.13.5",
     "dotenv": "^17.2.4",
     "electron-squirrel-startup": "^1.0.0",
-    "langchain": "^0.3.0",
     "ollama": "^0.5.0",
     "pdf-parse": "^1.1.1",
     "pdfkit": "^0.15.0",
@@ -76,6 +80,7 @@
     "@electron-forge/maker-zip": "^7.2.0",
     "@electron-forge/plugin-auto-unpack-natives": "^7.2.0",
     "@electron-forge/plugin-webpack": "^7.2.0",
+    "@electron/rebuild": "^4.0.3",
     "@playwright/test": "^1.41.2",
     "@types/node": "^20.11.16",
     "@types/pdfkit": "^0.13.4",
@@ -86,12 +91,11 @@
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
     "@vercel/webpack-asset-relocator-loader": "^1.7.3",
-    "@vitest/ui": "^1.2.2",
+    "@vitest/ui": "^4.0.18",
     "autoprefixer": "^10.4.17",
     "cross-env": "^7.0.3",
     "css-loader": "^6.10.0",
-    "electron": "^28.2.1",
-    "electron-rebuild": "^3.2.9",
+    "electron": "^35.7.5",
     "eslint": "^8.56.0",
     "eslint-plugin-import": "^2.29.1",
     "eslint-plugin-react": "^7.33.2",
@@ -104,7 +108,12 @@
     "tailwindcss": "^3.4.1",
     "ts-loader": "^9.5.1",
     "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
     "typescript": "^5.3.3",
-    "vitest": "^1.2.2"
+    "vitest": "^4.0.18"
+  },
+  "overrides": {
+    "tar": "^7.5.9",
+    "webpack-dev-server": "^5.2.2"
   }
 }

@@ -80,6 +80,11 @@ const ALLOWED_INVOKE_CHANNELS = [
   'settings:getAll',
   'settings:reset',
 
+  // Tax rules
+  'taxRules:getStatus',
+  'taxRules:getSupportedYears',
+  'taxRules:getDiagnostics',
+
   // Secure API Key Storage
   'apiKeys:get',
   'apiKeys:set',
@@ -165,7 +170,7 @@ export interface IElectronAPI {
 
   // Interview operations
   interview: {
-    start: (userProfile: Record<string, unknown>) => Promise<{
+    start: (userProfile: Record<string, unknown>, taxYear?: number) => Promise<{
       message: string;
       question: Record<string, unknown> | null;
       interviewId: string;
@@ -179,6 +184,26 @@ export interface IElectronAPI {
     getProfile: () => Promise<Record<string, unknown>>;
     save: (data: Record<string, unknown>) => Promise<void>;
     load: (id: string) => Promise<Record<string, unknown>>;
+  };
+
+  taxRules: {
+    getStatus: (taxYear?: number) => Promise<{
+      year: number;
+      state: 'ok' | 'missing' | 'stale' | 'invalid' | 'unsupportedYear';
+      message: string;
+      supportedYears: number[];
+      verifiedAt?: string;
+      daysSinceVerification?: number;
+    }>;
+    getSupportedYears: () => Promise<number[]>;
+    getDiagnostics: () => Promise<Array<{
+      year: number;
+      state: 'ok' | 'missing' | 'stale' | 'invalid' | 'unsupportedYear';
+      message: string;
+      supportedYears: number[];
+      verifiedAt?: string;
+      daysSinceVerification?: number;
+    }>>;
   };
 
   // Document operations
@@ -271,11 +296,19 @@ try {
 
     // Interview operations
     interview: {
-      start: (userProfile: Record<string, unknown>) => ipcRenderer.invoke('interview:start', userProfile),
+      start: (userProfile: Record<string, unknown>, taxYear?: number) =>
+        ipcRenderer.invoke('interview:start', userProfile, taxYear),
       continue: (userInput: string) => ipcRenderer.invoke('interview:continue', userInput),
       getProfile: () => ipcRenderer.invoke('interview:getProfile'),
       save: (data: Record<string, unknown>) => ipcRenderer.invoke('interview:save', data),
       load: (id: string) => ipcRenderer.invoke('interview:load', id)
+    },
+
+    // Tax rules
+    taxRules: {
+      getStatus: (taxYear?: number) => ipcRenderer.invoke('taxRules:getStatus', taxYear),
+      getSupportedYears: () => ipcRenderer.invoke('taxRules:getSupportedYears'),
+      getDiagnostics: () => ipcRenderer.invoke('taxRules:getDiagnostics')
     },
 
     // Document operations

@@ -103,7 +103,7 @@ const TOTAL_QUESTIONS_ESTIMATE = 32;
 
 function InterviewPage(): React.ReactElement {
   const navigate = useNavigate();
-  const { llmStatus, userProfile, setCurrentStep, addNotification } = useAppStore();
+  const { llmStatus, userProfile, currentTaxYear, setCurrentStep, addNotification } = useAppStore();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -199,7 +199,7 @@ function InterviewPage(): React.ReactElement {
 
     try {
       if (window.electronAPI) {
-        const response = await window.electronAPI.interview.start(userProfile);
+        const response = await window.electronAPI.interview.start(userProfile, currentTaxYear);
         const { message, question } = extractResponse(response);
 
         setCurrentQuestion(question);

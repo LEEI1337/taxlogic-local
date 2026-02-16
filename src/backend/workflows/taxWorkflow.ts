@@ -1,4 +1,4 @@
-/**
+﻿/**
  * TaxLogic.local - LangGraph Tax Filing Workflow
  *
  * Stateful workflow orchestrating the tax filing process:
@@ -18,6 +18,7 @@ import { ocrService, OCRResult, ExtractedData } from '../services/ocrService';
 import { documentOrganizer, ExpenseCategory, ClassificationResult } from '../services/documentOrganizer';
 import { formGenerator, L1FormData, L1abFormData, L1kFormData, GeneratedForm } from '../services/formGenerator';
 import { guideGenerator, PersonalizedGuide, GuideGenerationInput } from '../services/guideGenerator';
+import { getTaxRulesForYear } from '../taxRules';
 
 // ========================================
 // State Definition
@@ -114,15 +115,15 @@ export interface DeductionBreakdown {
 const INTERVIEW_QUESTIONS = [
   {
     id: 'profession',
-    question: 'Was ist Ihr Beruf bzw. Ihre Tätigkeit?',
+    question: 'Was ist Ihr Beruf bzw. Ihre TÃ¤tigkeit?',
     type: 'text',
     required: true
   },
   {
     id: 'employment_status',
-    question: 'Wie ist Ihr Beschäftigungsverhältnis?',
+    question: 'Wie ist Ihr BeschÃ¤ftigungsverhÃ¤ltnis?',
     type: 'choice',
-    options: ['Angestellt', 'Selbstständig', 'Gemischt', 'Pension'],
+    options: ['Angestellt', 'SelbststÃ¤ndig', 'Gemischt', 'Pension'],
     required: true
   },
   {
@@ -141,12 +142,12 @@ const INTERVIEW_QUESTIONS = [
     id: 'commute_type',
     question: 'Wie gelangen Sie zur Arbeit?',
     type: 'choice',
-    options: ['Öffentliche Verkehrsmittel', 'PKW', 'Fahrrad', 'Zu Fuß', 'Home Office'],
+    options: ['Ã–ffentliche Verkehrsmittel', 'PKW', 'Fahrrad', 'Zu FuÃŸ', 'Home Office'],
     required: true
   },
   {
     id: 'public_transport_feasible',
-    question: 'Ist die Benützung öffentlicher Verkehrsmittel zumutbar?',
+    question: 'Ist die BenÃ¼tzung Ã¶ffentlicher Verkehrsmittel zumutbar?',
     type: 'choice',
     options: ['Ja', 'Nein', 'Teilweise'],
     required: true
@@ -166,7 +167,7 @@ const INTERVIEW_QUESTIONS = [
   },
   {
     id: 'work_equipment_amount',
-    question: 'Wie hoch waren die Ausgaben für Arbeitsmittel insgesamt?',
+    question: 'Wie hoch waren die Ausgaben fÃ¼r Arbeitsmittel insgesamt?',
     type: 'number',
     required: false,
     condition: { field: 'work_equipment_expenses', value: 'Ja' }
@@ -201,7 +202,7 @@ const INTERVIEW_QUESTIONS = [
   },
   {
     id: 'donations',
-    question: 'Haben Sie steuerbegünstigte Spenden geleistet?',
+    question: 'Haben Sie steuerbegÃ¼nstigte Spenden geleistet?',
     type: 'choice',
     options: ['Ja', 'Nein'],
     required: true
@@ -215,7 +216,7 @@ const INTERVIEW_QUESTIONS = [
   },
   {
     id: 'medical_expenses',
-    question: 'Hatten Sie außergewöhnliche medizinische Ausgaben?',
+    question: 'Hatten Sie auÃŸergewÃ¶hnliche medizinische Ausgaben?',
     type: 'choice',
     options: ['Ja', 'Nein'],
     required: true
@@ -229,7 +230,7 @@ const INTERVIEW_QUESTIONS = [
   },
   {
     id: 'has_children',
-    question: 'Haben Sie Kinder, für die Sie Familienbeihilfe beziehen?',
+    question: 'Haben Sie Kinder, fÃ¼r die Sie Familienbeihilfe beziehen?',
     type: 'choice',
     options: ['Ja', 'Nein'],
     required: true
@@ -243,9 +244,9 @@ const INTERVIEW_QUESTIONS = [
   },
   {
     id: 'documents_available',
-    question: 'Haben Sie Belege/Rechnungen, die Sie hochladen möchten?',
+    question: 'Haben Sie Belege/Rechnungen, die Sie hochladen mÃ¶chten?',
     type: 'choice',
-    options: ['Ja, ich möchte Belege hochladen', 'Nein, nur manuelle Eingaben'],
+    options: ['Ja, ich mÃ¶chte Belege hochladen', 'Nein, nur manuelle Eingaben'],
     required: true
   }
 ];
@@ -380,6 +381,7 @@ async function analysisNode(state: TaxFilingState): Promise<Partial<TaxFilingSta
 
   const responses = state.interview_responses;
   const expenses = state.expenses;
+  const rules = getTaxRulesForYear(state.tax_year);
 
   // Calculate deductions based on interview and expenses
   const breakdown: DeductionBreakdown = {
@@ -398,20 +400,23 @@ async function analysisNode(state: TaxFilingState): Promise<Partial<TaxFilingSta
 
   if (commuteDistance >= 20 && publicTransportFeasible === 'Ja') {
     // Kleine Pendlerpauschale
-    if (commuteDistance >= 60) breakdown.pendlerpauschale = 2016;
-    else if (commuteDistance >= 40) breakdown.pendlerpauschale = 1356;
-    else breakdown.pendlerpauschale = 696;
+    const entry = rules.pendlerpauschale.klein.find((band) => {
+      const maxKm = band.maxKm ?? Infinity;
+      return commuteDistance >= band.minKm && commuteDistance < maxKm;
+    });
+    breakdown.pendlerpauschale = entry?.amount || 0;
   } else if (commuteDistance >= 2 && publicTransportFeasible !== 'Ja') {
-    // Große Pendlerpauschale
-    if (commuteDistance >= 60) breakdown.pendlerpauschale = 3672;
-    else if (commuteDistance >= 40) breakdown.pendlerpauschale = 2568;
-    else if (commuteDistance >= 20) breakdown.pendlerpauschale = 1476;
-    else breakdown.pendlerpauschale = 372;
+    // Grosse Pendlerpauschale
+    const entry = rules.pendlerpauschale.gross.find((band) => {
+      const maxKm = band.maxKm ?? Infinity;
+      return commuteDistance >= band.minKm && commuteDistance < maxKm;
+    });
+    breakdown.pendlerpauschale = entry?.amount || 0;
   }
 
-  // Home Office Pauschale (€3/day, max €300)
-  const homeOfficeDays = Math.min(Number(responses.home_office_days) || 0, 100);
-  breakdown.homeOffice = homeOfficeDays * 3;
+  // Home Office Pauschale
+  const homeOfficeDays = Math.min(Number(responses.home_office_days) || 0, rules.homeOffice.maxDays);
+  breakdown.homeOffice = homeOfficeDays * rules.homeOffice.perDay;
 
   // Work equipment from interview
   if (responses.work_equipment_expenses === 'Ja') {
@@ -426,14 +431,14 @@ async function analysisNode(state: TaxFilingState): Promise<Partial<TaxFilingSta
   // Sonderausgaben
   let sonderausgaben = 0;
   if (responses.church_tax === 'Ja') {
-    sonderausgaben += Math.min(Number(responses.church_tax_amount) || 0, 600); // Max €600
+    sonderausgaben += Math.min(Number(responses.church_tax_amount) || 0, rules.credits.churchTaxMax); // Max â‚¬600
   }
   if (responses.donations === 'Ja') {
     sonderausgaben += Number(responses.donations_amount) || 0;
   }
   breakdown.sonderausgaben = sonderausgaben;
 
-  // Außergewöhnliche Belastungen
+  // AuÃŸergewÃ¶hnliche Belastungen
   if (responses.medical_expenses === 'Ja') {
     breakdown.aussergewoehnlicheBelastungen = Number(responses.medical_amount) || 0;
   }
@@ -464,8 +469,8 @@ async function analysisNode(state: TaxFilingState): Promise<Partial<TaxFilingSta
     }
   }
 
-  // Cap Home Office at €300
-  breakdown.homeOffice = Math.min(breakdown.homeOffice, 300);
+  // Cap Home Office at â‚¬300
+  breakdown.homeOffice = Math.min(breakdown.homeOffice, rules.homeOffice.maxAmount);
 
   // Calculate totals
   const totalDeductions =
@@ -480,19 +485,15 @@ async function analysisNode(state: TaxFilingState): Promise<Partial<TaxFilingSta
   const totalIncome = Number(responses.annual_income) || 0;
 
   // Estimate refund using progressive tax brackets (Austrian 2024 rates)
-  // Werbungskostenpauschale is €132, only count if deductions exceed this
-  const effectiveDeductions = Math.max(totalDeductions - 132, 0);
+  // Werbungskostenpauschale is â‚¬132, only count if deductions exceed this
+  const effectiveDeductions = Math.max(totalDeductions - rules.credits.werbungskostenPauschale, 0);
 
   // Calculate marginal tax rate based on income to estimate refund
-  const taxBrackets = [
-    { min: 0, max: 11693, rate: 0 },
-    { min: 11693, max: 19134, rate: 0.2 },
-    { min: 19134, max: 32075, rate: 0.3 },
-    { min: 32075, max: 62080, rate: 0.4 },
-    { min: 62080, max: 93120, rate: 0.48 },
-    { min: 93120, max: 1000000, rate: 0.5 },
-    { min: 1000000, max: Infinity, rate: 0.55 }
-  ];
+  const taxBrackets = rules.taxBrackets.map((bracket) => ({
+    min: bracket.min,
+    max: bracket.max ?? Infinity,
+    rate: bracket.rate
+  }));
 
   // Find the marginal tax rate for the user's income
   let marginalRate = 0;
@@ -511,7 +512,7 @@ async function analysisNode(state: TaxFilingState): Promise<Partial<TaxFilingSta
     estimated_refund: Math.round(estimatedRefund * 100) / 100,
     breakdown,
     details: {
-      werbungskostenpauschale: 132,
+      werbungskostenpauschale: rules.credits.werbungskostenPauschale,
       effective_deductions: effectiveDeductions,
       marginal_tax_rate: marginalRate
     }
@@ -542,10 +543,10 @@ async function formGenerationNode(state: TaxFilingState): Promise<Partial<TaxFil
 
   const l1Data: L1FormData = {
     sozialversicherungsnummer: ((profile as Record<string, unknown>).svnr as string) || '',
-    familienname: familienname || 'BITTE AUSFÜLLEN',
-    vorname: vorname || 'BITTE AUSFÜLLEN',
-    geburtsdatum: ((profile as Record<string, unknown>).birth_date as string) || 'BITTE AUSFÜLLEN',
-    strasse: ((profile as Record<string, unknown>).street as string) || 'BITTE AUSFÜLLEN',
+    familienname: familienname || 'BITTE AUSFÃœLLEN',
+    vorname: vorname || 'BITTE AUSFÃœLLEN',
+    geburtsdatum: ((profile as Record<string, unknown>).birth_date as string) || 'BITTE AUSFÃœLLEN',
+    strasse: ((profile as Record<string, unknown>).street as string) || 'BITTE AUSFÃœLLEN',
     hausnummer: ((profile as Record<string, unknown>).house_number as string) || '',
     plz: ((profile as Record<string, unknown>).postal_code as string) || '',
     ort: ((profile as Record<string, unknown>).city as string) || '',
@@ -567,7 +568,7 @@ async function formGenerationNode(state: TaxFilingState): Promise<Partial<TaxFil
   generatedForms.push(l1Form);
 
   // Check if L1ab is needed (additional income)
-  const hasAdditionalIncome = responses.employment_status === 'Gemischt' || responses.employment_status === 'Selbstständig';
+  const hasAdditionalIncome = responses.employment_status === 'Gemischt' || responses.employment_status === 'SelbststÃ¤ndig';
   if (hasAdditionalIncome) {
     const l1abData: L1abFormData = {
       veranlagungsjahr: state.tax_year
@@ -659,20 +660,20 @@ async function finalReviewNode(state: TaxFilingState): Promise<Partial<TaxFiling
 
   const summaryMessage = new AIMessage({
     content: `
-## 🎉 Ihre Arbeitnehmerveranlagung ist fertig!
+## ðŸŽ‰ Ihre Arbeitnehmerveranlagung ist fertig!
 
-### Zusammenfassung für ${state.tax_year}
+### Zusammenfassung fÃ¼r ${state.tax_year}
 
 **Berechnung:**
-- Bruttoeinkommen: €${calculation.total_income.toLocaleString('de-AT')}
-- Gesamte Absetzbeträge: €${calculation.total_deductions.toLocaleString('de-AT')}
-- **Geschätzte Rückerstattung: €${calculation.estimated_refund.toLocaleString('de-AT')}**
+- Bruttoeinkommen: â‚¬${calculation.total_income.toLocaleString('de-AT')}
+- Gesamte AbsetzbetrÃ¤ge: â‚¬${calculation.total_deductions.toLocaleString('de-AT')}
+- **GeschÃ¤tzte RÃ¼ckerstattung: â‚¬${calculation.estimated_refund.toLocaleString('de-AT')}**
 
 **Generierte Formulare:** ${formsGenerated}
 
 **Verarbeitete Dokumente:** ${state.documents.length}
 
-Ihre persönliche Anleitung mit Schritt-für-Schritt Anweisungen für FinanzOnline wurde erstellt.
+Ihre persÃ¶nliche Anleitung mit Schritt-fÃ¼r-Schritt Anweisungen fÃ¼r FinanzOnline wurde erstellt.
 
 ${state.errors.length > 0 ? `\n**Hinweise:**\n${state.errors.join('\n')}` : ''}
     `.trim()
@@ -691,7 +692,7 @@ ${state.errors.length > 0 ? `\n**Hinweise:**\n${state.errors.join('\n')}` : ''}
 
 function shouldProcessDocuments(state: TaxFilingState): 'document_processing' | 'analysis' {
   const hasDocuments = state.pending_documents.length > 0;
-  const wantsDocuments = state.interview_responses.documents_available === 'Ja, ich möchte Belege hochladen';
+  const wantsDocuments = state.interview_responses.documents_available === 'Ja, ich mÃ¶chte Belege hochladen';
 
   if (hasDocuments || wantsDocuments) {
     return 'document_processing';
@@ -869,3 +870,4 @@ export class TaxFilingWorkflowRunner {
 // Export singleton runner
 export const taxFilingRunner = new TaxFilingWorkflowRunner();
 export default TaxFilingWorkflowRunner;
+

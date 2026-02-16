@@ -164,7 +164,14 @@ export const useAppStore = create<AppState>()(
 
       // Current tax year
       currentTaxYear: new Date().getFullYear() - 1,
-      setCurrentTaxYear: (year) => set({ currentTaxYear: year }),
+      setCurrentTaxYear: (year) =>
+        set((state) => ({
+          currentTaxYear: year,
+          userProfile: {
+            ...state.userProfile,
+            taxYear: year
+          }
+        })),
 
       // Navigation
       currentStep: 'interview',

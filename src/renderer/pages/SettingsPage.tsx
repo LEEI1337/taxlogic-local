@@ -19,6 +19,8 @@ function SettingsPage(): React.ReactElement {
     llmStatus,
     checkLLMStatus,
     isCheckingLLM,
+    currentTaxYear,
+    setCurrentTaxYear,
     userProfile,
     setUserProfile,
     setOnboarded
@@ -31,6 +33,8 @@ function SettingsPage(): React.ReactElement {
     geminiApiKey: '',
     openaiCompatibleApiKey: ''
   });
+  const [apiKeyStorageMode, setApiKeyStorageMode] = useState<'encrypted' | 'unavailable'>('encrypted');
+  const [supportedYears, setSupportedYears] = useState<number[]>([]);
 
   // Load API keys on mount
   useEffect(() => {
@@ -39,13 +43,44 @@ function SettingsPage(): React.ReactElement {
       try {
         const allKeys = await window.electronAPI.invoke('apiKeys:getAll');
         if (allKeys && typeof allKeys === 'object') {
-          setApiKeys((prev) => ({ ...prev, ...allKeys }));
+          const keyData = allKeys as Record<string, string>;
+          if (keyData._storageMode === 'unavailable') {
+            setApiKeyStorageMode('unavailable');
+          } else {
+            setApiKeyStorageMode('encrypted');
+          }
+          setApiKeys((prev) => ({
+            ...prev,
+            anthropicApiKey: keyData.anthropicApiKey || prev.anthropicApiKey,
+            openaiApiKey: keyData.openaiApiKey || prev.openaiApiKey,
+            geminiApiKey: keyData.geminiApiKey || prev.geminiApiKey,
+            openaiCompatibleApiKey: keyData.openaiCompatibleApiKey || prev.openaiCompatibleApiKey
+          }));
         }
       } catch (err) {
         console.error('Failed to load API keys:', err);
       }
     };
     loadKeys();
+  }, []);
+
+  useEffect(() => {
+    const loadTaxYears = async () => {
+      if (!window.electronAPI?.taxRules) {
+        return;
+      }
+
+      try {
+        const years = await window.electronAPI.taxRules.getSupportedYears();
+        setSupportedYears(years.sort((a, b) => b - a));
+      } catch (error) {
+        console.error('Failed to load supported tax years:', error);
+      }
+    };
+
+    loadTaxYears().catch((error) => {
+      console.error('Tax year loading error:', error);
+    });
   }, []);
 
   const updateApiKey = useCallback(async (keyName: ApiKeyName, value: string) => {
@@ -59,6 +94,23 @@ function SettingsPage(): React.ReactElement {
     }
   }, []);
 
+  const handleTaxYearChange = useCallback(async (yearValue: string) => {
+    const nextYear = Number(yearValue);
+    if (Number.isNaN(nextYear)) {
+      return;
+    }
+
+    setCurrentTaxYear(nextYear);
+
+    if (window.electronAPI) {
+      try {
+        await window.electronAPI.invoke('settings:set', 'currentTaxYear', nextYear);
+      } catch (error) {
+        console.error('Failed to persist tax year:', error);
+      }
+    }
+  }, [setCurrentTaxYear]);
+
   return (
     <div className="max-w-2xl">
       <h2 className="text-xl font-semibold text-white mb-6">Einstellungen</h2>
@@ -66,6 +118,14 @@ function SettingsPage(): React.ReactElement {
       {/* LLM Configuration */}
       <section className="card p-6 mb-6">
         <h3 className="font-medium text-white mb-4">KI-Konfiguration</h3>
+
+        {apiKeyStorageMode === 'unavailable' && (
+          <div className="bg-red-900/30 border border-red-800 rounded-lg p-3 mb-4">
+            <p className="text-sm text-red-300">
+              Sichere API-Key-Speicherung ist auf diesem System nicht verfuegbar. Cloud-Provider bleiben deaktiviert.
+            </p>
+          </div>
+        )}
 
         <div className="space-y-4">
           {/* Preferred LLM */}
@@ -317,6 +377,22 @@ function SettingsPage(): React.ReactElement {
               <option value="freelancer">Freiberuflich</option>
               <option value="business_owner">Unternehmer</option>
               <option value="retired">Pensionist</option>
+            </select>
+          </div>
+          <div>
+            <label className="label">Aktives Steuerjahr</label>
+            <select
+              value={String(currentTaxYear)}
+              onChange={(e) => {
+                handleTaxYearChange(e.target.value).catch((error) => {
+                  console.error('Tax year change failed:', error);
+                });
+              }}
+              className="input"
+            >
+              {(supportedYears.length > 0 ? supportedYears : [currentTaxYear]).map((year) => (
+                <option key={year} value={year}>{year}</option>
+              ))}
             </select>
           </div>
           <button

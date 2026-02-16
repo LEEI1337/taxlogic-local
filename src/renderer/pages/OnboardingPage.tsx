@@ -20,6 +20,7 @@ function OnboardingPage(): React.ReactElement {
     checkLLMStatus,
     isCheckingLLM,
     setUserProfile,
+    currentTaxYear,
     settings,
     updateSettings
   } = useAppStore();
@@ -201,7 +202,7 @@ function OnboardingPage(): React.ReactElement {
                 <p className="text-blue-400 text-sm">
                   <strong>So funktioniert es:</strong> TaxLogic nutzt eine lokale KI (Ollama), um Sie durch
                   ein intelligentes Interview zu fuhren. Die KI analysiert Ihre Dokumente und berechnet
-                  automatisch alle moglichen Absetzungen nach osterreichischem Steuerrecht (EStG 2024).
+                  automatisch alle moglichen Absetzungen nach osterreichischem Steuerrecht fuer das aktive Jahr.
                 </p>
               </div>
             </div>
@@ -433,8 +434,8 @@ function OnboardingPage(): React.ReactElement {
 
                 <div className="bg-neutral-800/50 rounded-lg p-3">
                   <p className="text-xs text-neutral-400">
-                    <strong>Steuerjahr {new Date().getFullYear() - 1}:</strong> TaxLogic erstellt Ihre Erklarung
-                    fur das vergangene Jahr. Die Berechnung basiert auf dem aktuellen EStG 2024 mit allen
+                    <strong>Steuerjahr {currentTaxYear}:</strong> TaxLogic erstellt Ihre Erklarung
+                    fuer das ausgewaehlte Jahr. Die Berechnung basiert auf den validierten Regelpaketen
                     Steuerstufen, Freibetragen und Absetzbetragsregelungen.
                   </p>
                 </div>
@@ -476,7 +477,7 @@ function OnboardingPage(): React.ReactElement {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-neutral-400">Steuerjahr:</span>
-                  <span className="text-white">{new Date().getFullYear() - 1}</span>
+                  <span className="text-white">{currentTaxYear}</span>
                 </div>
               </div>
 

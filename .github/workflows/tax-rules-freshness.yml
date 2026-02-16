@@ -1,0 +1,83 @@
+﻿name: Tax Rules Freshness
+
+on:
+  schedule:
+    - cron: '0 7 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  freshness-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - id: doctor
+        continue-on-error: true
+        run: npm run tax-rules:doctor
+      - name: Create issue on failure
+        if: steps.doctor.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = `Tax rules freshness check failed (${new Date().toISOString().slice(0, 10)})`;
+            const labelName = 'tax-rules';
+
+            const labelsResponse = await github.rest.issues.listLabelsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+
+            const labelExists = labelsResponse.data.some((label) => label.name === labelName);
+            if (!labelExists) {
+              await github.rest.issues.createLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: labelName,
+                color: 'd73a4a',
+                description: 'Tax rules maintenance and freshness checks'
+              });
+            }
+
+            const openIssues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: labelName,
+              per_page: 100
+            });
+
+            const duplicate = openIssues.data.find((issue) =>
+              issue.title.includes('Tax rules freshness check failed')
+            );
+
+            if (!duplicate) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                labels: [labelName],
+                body: [
+                  'The scheduled `tax-rules:doctor` workflow failed.',
+                  '',
+                  'Required actions:',
+                  '1. Update `config/tax-rules/*` and `config/tax-sources/*`',
+                  '2. Run `npm run tax-rules:check`',
+                  '3. Run `npm run tax-rules:verify`',
+                  '4. Run `npm run tax-rules:sync-rag`',
+                  '',
+                  `Workflow run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+                ].join('\n')
+              });
+            }
+      - name: Fail workflow if doctor failed
+        if: steps.doctor.outcome == 'failure'
+        run: exit 1

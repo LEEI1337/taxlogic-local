@@ -1,4 +1,4 @@
-/**
+﻿/**
  * TaxLogic.local - IPC Handlers
  *
  * Registers all IPC handlers for communication between main and renderer processes.
@@ -9,6 +9,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 
 import { ipcMain, app, dialog, shell, BrowserWindow, safeStorage } from 'electron';
+import { z } from 'zod';
 
 // Import services
 import { llmService } from '../backend/services/llmService';
@@ -17,6 +18,7 @@ import { ocrService } from '../backend/services/ocrService';
 import { documentOrganizer } from '../backend/services/documentOrganizer';
 import { formGenerator, L1FormData, L1abFormData, L1kFormData } from '../backend/services/formGenerator';
 import { guideGenerator } from '../backend/services/guideGenerator';
+import { sanitizeUserInput } from '../backend/utils/validation';
 // Import agents
 import { interviewerAgent } from '../backend/agents/interviewerAgent';
 import { documentInspectorAgent } from '../backend/agents/documentInspectorAgent';
@@ -24,13 +26,39 @@ import { analyzerAgent, TaxProfile } from '../backend/agents/analyzerAgent';
 // Import RAG
 import { knowledgeBase, KnowledgeCategory } from '../backend/rag/knowledgeBase';
 import { retriever } from '../backend/rag/retriever';
+import {
+  getAllTaxRuleStatuses,
+  getTaxRuleStatus,
+  getTaxRulesForYear,
+  listSupportedTaxRuleYears
+} from '../backend/taxRules';
 
-
+import {
+  apiKeyNameSchema,
+  apiKeyValueSchema,
+  documentUploadSchema,
+  filePathSchema,
+  formTypeSchema,
+  idSchema,
+  interviewSaveSchema,
+  interviewStartSchema,
+  llmConfigSchema,
+  llmModelSchema,
+  llmQuerySchema,
+  outputPathSchema,
+  ragQuerySchema,
+  saveFileRequestSchema,
+  selectFilesFiltersSchema,
+  settingKeySchema,
+  taxYearSchema,
+  textInputSchema
+} from './ipcValidation';
 import { logger } from './utils/logger';
 
 // State
 let currentUserId: string | null = null;
 let currentInterviewId: string | null = null;
+let currentTaxYear: number | null = null;
 
 /**
  * Initialize all services
@@ -44,7 +72,8 @@ async function initializeServices(): Promise<void> {
     logger.info('Database initialized');
 
     // Initialize knowledge base (non-blocking - don't prevent app from working if embeddings fail)
-    knowledgeBase.initialize().then(() => {
+    const targetTaxYear = currentTaxYear ?? (new Date().getFullYear() - 1);
+    knowledgeBase.initialize(targetTaxYear).then(() => {
       logger.info('Knowledge base initialized');
     }).catch((kbError) => {
       logger.warn('Knowledge base initialization failed (RAG features will be unavailable):', kbError);
@@ -74,8 +103,69 @@ export function registerIpcHandlers(): void {
   let servicesInitialized = false;
   const ensureServicesInitialized = async () => {
     if (!servicesInitialized) {
+      currentTaxYear = resolveActiveTaxYear();
       await initializeServices();
       servicesInitialized = true;
+    }
+  };
+
+  const SETTINGS_TAX_YEAR_KEY = 'currentTaxYear';
+
+  const parseOrThrow = <T>(schema: z.ZodSchema<T>, value: unknown, context: string): T => {
+    const parsed = schema.safeParse(value);
+    if (!parsed.success) {
+      const details = parsed.error.errors.map((issue) => issue.message).join('; ');
+      throw new Error(`${context}: ${details}`);
+    }
+    return parsed.data;
+  };
+
+  const getFallbackTaxYear = (): number => new Date().getFullYear() - 1;
+
+  const resolveActiveTaxYear = (requestedYear?: unknown): number => {
+    if (typeof requestedYear !== 'undefined' && requestedYear !== null) {
+      const parsedRequestedYear = parseOrThrow(taxYearSchema, requestedYear, 'Invalid tax year');
+      return parsedRequestedYear;
+    }
+
+    if (currentTaxYear !== null) {
+      return currentTaxYear;
+    }
+
+    const settings = loadSettings();
+    const persistedYear = settings[SETTINGS_TAX_YEAR_KEY];
+    if (typeof persistedYear === 'number' && Number.isInteger(persistedYear)) {
+      return persistedYear;
+    }
+    if (typeof persistedYear === 'string') {
+      const parsedYear = Number(persistedYear);
+      if (Number.isInteger(parsedYear)) {
+        return parsedYear;
+      }
+    }
+
+    return getFallbackTaxYear();
+  };
+
+  const setActiveTaxYear = async (taxYear: number): Promise<void> => {
+    currentTaxYear = taxYear;
+    const settings = loadSettings();
+    settings[SETTINGS_TAX_YEAR_KEY] = taxYear;
+    saveSettings(settings);
+
+    try {
+      await knowledgeBase.initialize(taxYear);
+    } catch (error) {
+      logger.warn('Knowledge base year switch failed', { taxYear, error });
+    }
+  };
+
+  const assertTaxRulesReady = (taxYear: number, operation: string): void => {
+    const status = getTaxRuleStatus(taxYear);
+    if (status.state !== 'ok') {
+      throw new Error(
+        `Steuerregeln fuer ${taxYear} sind nicht bereit (${status.state}) bei ${operation}. ${status.message}. Bitte Regelpaket aktualisieren und erneut pruefen.`
+      );
     }
   };
 
@@ -152,24 +242,31 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('llm:setModel', async (_event, modelName: string) => {
-    logger.info('Setting model to:', modelName);
-    llmService.setModel(modelName);
+    const validatedModel = parseOrThrow(llmModelSchema, modelName, 'Invalid llm:setModel payload');
+    logger.info('Setting model');
+    llmService.setModel(validatedModel);
   });
 
   ipcMain.handle('llm:setConfig', async (_event, config: Record<string, unknown>) => {
-    logger.info('Updating LLM config:', Object.keys(config));
-    llmService.setConfig(config);
+    const validatedConfig = parseOrThrow(llmConfigSchema, config, 'Invalid llm:setConfig payload');
+    logger.info('Updating LLM config', { keys: Object.keys(validatedConfig) });
+    llmService.setConfig(validatedConfig);
   });
 
   ipcMain.handle('llm:query', async (_event, prompt: string, conversationHistory?: Array<{ role: string; content: string }>) => {
     logger.debug('LLM query received');
     try {
-      const history = conversationHistory?.map(m => ({
-        role: m.role as 'user' | 'assistant',
+      const validatedPayload = parseOrThrow(
+        llmQuerySchema,
+        { prompt, conversationHistory },
+        'Invalid llm:query payload'
+      );
+      const history = validatedPayload.conversationHistory?.map(m => ({
+        role: m.role,
         content: m.content
       })) || [];
 
-      const response = await llmService.query(prompt, history);
+      const response = await llmService.query(validatedPayload.prompt, history);
       return response.content;
     } catch (error) {
       logger.error('LLM query error:', error);
@@ -181,26 +278,33 @@ export function registerIpcHandlers(): void {
   // Interview Operations
   // ========================================
 
-  ipcMain.handle('interview:start', async (_event, userProfile: UserProfile) => {
+  ipcMain.handle('interview:start', async (_event, userProfile: UserProfile, taxYear?: number) => {
     logger.info('Starting interview...');
     await ensureServicesInitialized();
 
     try {
+      const validatedPayload = parseOrThrow(
+        interviewStartSchema,
+        { userProfile, taxYear },
+        'Invalid interview:start payload'
+      );
+      const resolvedTaxYear = resolveActiveTaxYear(validatedPayload.taxYear);
+      await setActiveTaxYear(resolvedTaxYear);
+
       // Create or get user
       if (!currentUserId) {
-        const user = dbService.createUser(userProfile);
+        const user = dbService.createUser(validatedPayload.userProfile as UserProfile);
         currentUserId = user.id;
       } else {
-        dbService.updateUser(currentUserId, userProfile);
+        dbService.updateUser(currentUserId, validatedPayload.userProfile as UserProfile);
       }
 
       // Create interview record
-      const taxYear = new Date().getFullYear() - 1;
-      const interview = dbService.createInterview(currentUserId, taxYear);
+      const interview = dbService.createInterview(currentUserId, resolvedTaxYear);
       currentInterviewId = interview.id;
 
       // Start interview agent
-      const response = interviewerAgent.startInterview(currentUserId, taxYear);
+      const response = interviewerAgent.startInterview(currentUserId, resolvedTaxYear);
 
       return {
         message: response.message,
@@ -214,10 +318,15 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('interview:continue', async (_event, userInput: string) => {
-    logger.debug('Continuing interview with input:', userInput);
+    const safeUserInput = parseOrThrow(
+      textInputSchema,
+      sanitizeUserInput(userInput),
+      'Invalid interview:continue payload'
+    );
+    logger.debug('Continuing interview with input length', { length: safeUserInput.length });
 
     try {
-      const response = await interviewerAgent.processResponse(userInput);
+      const response = await interviewerAgent.processResponse(safeUserInput);
 
       // Save responses to database
       if (currentInterviewId) {
@@ -254,17 +363,20 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('interview:save', async (_event, data: Record<string, unknown>) => {
     logger.info('Saving interview data...');
+    const validatedData = parseOrThrow(interviewSaveSchema, data, 'Invalid interview:save payload');
     if (currentInterviewId) {
-      dbService.updateInterviewResponses(currentInterviewId, data);
+      dbService.updateInterviewResponses(currentInterviewId, validatedData);
     }
   });
 
   ipcMain.handle('interview:load', async (_event, id: string) => {
-    logger.info('Loading interview:', id);
-    const interview = dbService.getInterview(id);
+    const interviewId = parseOrThrow(idSchema, id, 'Invalid interview:load payload');
+    logger.info('Loading interview', { interviewId });
+    const interview = dbService.getInterview(interviewId);
     if (interview) {
       // Restore agent context so subsequent processResponse calls work
       currentInterviewId = interview.id;
+      await setActiveTaxYear(interview.tax_year);
       try {
         const responses = interview.responses || {};
         interviewerAgent.restoreContext({
@@ -288,11 +400,16 @@ export function registerIpcHandlers(): void {
   // ========================================
 
   ipcMain.handle('documents:upload', async (_event, filePaths: string[]) => {
-    logger.info('Uploading documents:', filePaths.length, 'files');
+    const validatedFilePaths = parseOrThrow(
+      documentUploadSchema,
+      filePaths,
+      'Invalid documents:upload payload'
+    );
+    logger.info('Uploading documents', { count: validatedFilePaths.length });
     await ensureServicesInitialized();
 
     const results = [];
-    for (const filePath of filePaths) {
+    for (const filePath of validatedFilePaths) {
       try {
         // Process document with OCR
         const analysis = await documentInspectorAgent.processDocument(filePath);
@@ -324,7 +441,7 @@ export function registerIpcHandlers(): void {
           });
         }
       } catch (error) {
-        logger.error('Error processing document:', filePath, error);
+        logger.error('Error processing document', { fileName: path.basename(filePath), error });
         results.push({
           id: `error_${Date.now()}`,
           path: filePath,
@@ -338,9 +455,10 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('documents:process', async (_event, documentId: string) => {
-    logger.info('Processing document:', documentId);
+    const validatedDocumentId = parseOrThrow(idSchema, documentId, 'Invalid documents:process payload');
+    logger.info('Processing document', { documentId: validatedDocumentId });
     // Document is already processed during upload
-    return { id: documentId, status: 'processed' };
+    return { id: validatedDocumentId, status: 'processed' };
   });
 
   ipcMain.handle('documents:organize', async () => {
@@ -350,7 +468,7 @@ export function registerIpcHandlers(): void {
       return { organized: false, error: 'No user logged in' };
     }
 
-    const taxYear = new Date().getFullYear() - 1;
+    const taxYear = resolveActiveTaxYear();
     const manifest = await documentOrganizer.buildManifest(currentUserId, taxYear);
 
     return {
@@ -383,7 +501,9 @@ export function registerIpcHandlers(): void {
 
     try {
       const interviewResponses = interviewerAgent.getResponses();
-      const taxYear = new Date().getFullYear() - 1;
+      const taxYear = resolveActiveTaxYear();
+      assertTaxRulesReady(taxYear, 'analysis:calculate');
+      await setActiveTaxYear(taxYear);
 
       // Build tax profile from interview responses
       const profile: TaxProfile = {
@@ -397,8 +517,8 @@ export function registerIpcHandlers(): void {
           grossIncome: interviewResponses.gross_income as number || 0,
           withheldTax: (interviewResponses.gross_income as number || 0) * 0.35, // Estimate
           employerCount: interviewResponses.employer_count as number || 1,
-          hasSelfEmployment: interviewResponses.employment_type === 'Selbstständig (Einzelunternehmer)' ||
-                            interviewResponses.employment_type === 'Gemischt (angestellt + selbstständig)'
+          hasSelfEmployment: interviewResponses.employment_type === 'SelbststÃ¤ndig (Einzelunternehmer)' ||
+                            interviewResponses.employment_type === 'Gemischt (angestellt + selbststÃ¤ndig)'
         },
         deductions: {
           pendlerpauschale: {
@@ -458,7 +578,7 @@ export function registerIpcHandlers(): void {
 
       return result;
     } catch (error) {
-      logger.error('Analysis error:', error);
+      logger.error('Analysis error', error);
       throw error;
     }
   });
@@ -496,12 +616,16 @@ export function registerIpcHandlers(): void {
   // ========================================
 
   ipcMain.handle('forms:generate', async (_event, formType: string) => {
-    logger.info('Generating form:', formType);
+    const validatedFormType = parseOrThrow(formTypeSchema, formType, 'Invalid forms:generate payload');
+    logger.info('Generating form', { formType: validatedFormType });
     await ensureServicesInitialized();
 
     try {
       const interviewResponses = interviewerAgent.getResponses();
-      const taxYear = new Date().getFullYear() - 1;
+      const taxYear = resolveActiveTaxYear();
+      assertTaxRulesReady(taxYear, 'forms:generate');
+      await setActiveTaxYear(taxYear);
+      const rules = getTaxRulesForYear(taxYear);
 
       let generatedForm;
 
@@ -511,20 +635,23 @@ export function registerIpcHandlers(): void {
       const greeting = interviewResponses.greeting as string || '';
       const nameParts = greeting.split(' ');
 
-      if (formType === 'L1' || formType === 'all') {
+      if (validatedFormType === 'L1' || validatedFormType === 'all') {
         const l1Data: L1FormData = {
           sozialversicherungsnummer: (profileData as Record<string, unknown>).svnr as string || '',
-          familienname: (profileData as Record<string, unknown>).last_name as string || nameParts.slice(1).join(' ') || 'BITTE AUSFÜLLEN',
-          vorname: (profileData as Record<string, unknown>).first_name as string || nameParts[0] || 'BITTE AUSFÜLLEN',
-          geburtsdatum: (profileData as Record<string, unknown>).birth_date as string || 'BITTE AUSFÜLLEN',
-          strasse: (profileData as Record<string, unknown>).street as string || 'BITTE AUSFÜLLEN',
+          familienname: (profileData as Record<string, unknown>).last_name as string || nameParts.slice(1).join(' ') || 'BITTE AUSFÃœLLEN',
+          vorname: (profileData as Record<string, unknown>).first_name as string || nameParts[0] || 'BITTE AUSFÃœLLEN',
+          geburtsdatum: (profileData as Record<string, unknown>).birth_date as string || 'BITTE AUSFÃœLLEN',
+          strasse: (profileData as Record<string, unknown>).street as string || 'BITTE AUSFÃœLLEN',
           hausnummer: (profileData as Record<string, unknown>).house_number as string || '',
           plz: (profileData as Record<string, unknown>).postal_code as string || '',
           ort: (profileData as Record<string, unknown>).city as string || '',
           veranlagungsjahr: taxYear,
           bruttoeinkunfte: interviewResponses.gross_income as number,
           homeOfficeTage: interviewResponses.home_office_days as number,
-          homeOfficePauschale: Math.min((interviewResponses.home_office_days as number || 0) * 3, 300),
+          homeOfficePauschale: Math.min(
+            (interviewResponses.home_office_days as number || 0) * rules.homeOffice.perDay,
+            rules.homeOffice.maxAmount
+          ),
           pendlerkilometer: interviewResponses.commute_distance as number,
           kirchenbeitrag: interviewResponses.church_tax_amount as number,
           spendenBeguenstigte: interviewResponses.donations_amount as number,
@@ -533,12 +660,12 @@ export function registerIpcHandlers(): void {
         };
 
         generatedForm = await formGenerator.generateL1(l1Data);
-      } else if (formType === 'L1ab') {
+      } else if (validatedFormType === 'L1ab') {
         const l1abData: L1abFormData = {
           veranlagungsjahr: taxYear
         };
         generatedForm = await formGenerator.generateL1ab(l1abData);
-      } else if (formType === 'L1k') {
+      } else if (validatedFormType === 'L1k') {
         const l1kData: L1kFormData = {
           veranlagungsjahr: taxYear,
           kinder: [],
@@ -549,10 +676,11 @@ export function registerIpcHandlers(): void {
 
       // Save to database
       if (currentUserId && currentInterviewId && generatedForm) {
+        const persistedFormType = validatedFormType === 'all' ? 'L1' : validatedFormType;
         dbService.createForm(
           currentUserId,
           currentInterviewId,
-          formType as 'L1' | 'L1ab' | 'L1k',
+          persistedFormType as 'L1' | 'L1ab' | 'L1k',
           generatedForm.jsonData
         );
       }
@@ -565,11 +693,13 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('forms:preview', async (_event, formType: string) => {
-    logger.debug('Previewing form:', formType);
+    const validatedFormType = parseOrThrow(formTypeSchema, formType, 'Invalid forms:preview payload');
+    logger.debug('Previewing form', { formType: validatedFormType });
 
     if (currentInterviewId) {
       const forms = dbService.getFormsByInterview(currentInterviewId);
-      const form = forms.find(f => f.form_type === formType);
+      const targetType = validatedFormType === 'all' ? 'L1' : validatedFormType;
+      const form = forms.find(f => f.form_type === targetType);
       return form?.pdf_path || '';
     }
 
@@ -577,14 +707,19 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('forms:export', async (_event, formType: string, outputPath: string) => {
-    logger.info('Exporting form:', formType, 'to', outputPath);
+    const validatedFormType = parseOrThrow(formTypeSchema, formType, 'Invalid forms:export formType');
+    const validatedOutputPath = parseOrThrow(outputPathSchema, outputPath, 'Invalid forms:export outputPath');
+    logger.info('Exporting form', { formType: validatedFormType });
+    const taxYear = resolveActiveTaxYear();
+    assertTaxRulesReady(taxYear, 'forms:export');
 
     if (currentInterviewId) {
       const forms = dbService.getFormsByInterview(currentInterviewId);
-      const form = forms.find(f => f.form_type === formType);
+      const targetType = validatedFormType === 'all' ? 'L1' : validatedFormType;
+      const form = forms.find(f => f.form_type === targetType);
 
       if (form?.pdf_path && fs.existsSync(form.pdf_path)) {
-        fs.copyFileSync(form.pdf_path, outputPath);
+        fs.copyFileSync(form.pdf_path, validatedOutputPath);
       }
     }
   });
@@ -603,7 +738,10 @@ export function registerIpcHandlers(): void {
 
     try {
       const interviewResponses = interviewerAgent.getResponses();
-      const taxYear = new Date().getFullYear() - 1;
+      const taxYear = resolveActiveTaxYear();
+      assertTaxRulesReady(taxYear, 'guide:generate');
+      await setActiveTaxYear(taxYear);
+      const rules = getTaxRulesForYear(taxYear);
 
       // Get calculation
       let calculation;
@@ -632,7 +770,10 @@ export function registerIpcHandlers(): void {
           veranlagungsjahr: taxYear,
           bruttoeinkunfte: interviewResponses.gross_income as number,
           homeOfficeTage: interviewResponses.home_office_days as number,
-          homeOfficePauschale: Math.min((interviewResponses.home_office_days as number || 0) * 3, 300)
+          homeOfficePauschale: Math.min(
+            (interviewResponses.home_office_days as number || 0) * rules.homeOffice.perDay,
+            rules.homeOffice.maxAmount
+          )
         },
         hasL1ab: false,
         hasL1k: interviewResponses.has_children as boolean || false,
@@ -652,10 +793,13 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('guide:export', async (_event, outputPath: string) => {
-    logger.info('Exporting guide to:', outputPath);
+    const validatedOutputPath = parseOrThrow(outputPathSchema, outputPath, 'Invalid guide:export outputPath');
+    logger.info('Exporting guide');
 
     try {
-      const taxYear = new Date().getFullYear() - 1;
+      const taxYear = resolveActiveTaxYear();
+      assertTaxRulesReady(taxYear, 'guide:export');
+      await setActiveTaxYear(taxYear);
 
       // Load user profile from DB for export
       const exportUserProfile = currentUserId ? dbService.getUser(currentUserId) : null;
@@ -685,8 +829,8 @@ export function registerIpcHandlers(): void {
       const pdfPath = await guideGenerator.exportAsPDF(guide);
 
       // Copy to desired output path
-      if (outputPath && pdfPath) {
-        fs.copyFileSync(pdfPath, outputPath);
+      if (validatedOutputPath && pdfPath) {
+        fs.copyFileSync(pdfPath, validatedOutputPath);
       }
 
       return pdfPath;
@@ -700,15 +844,23 @@ export function registerIpcHandlers(): void {
   // RAG / Knowledge Base Operations
   // ========================================
 
-  ipcMain.handle('rag:query', async (_event, question: string, category?: string) => {
-    logger.info('RAG query:', question);
+  ipcMain.handle('rag:query', async (_event, question: string, category?: string, taxYear?: number) => {
+    const validatedRequest = parseOrThrow(
+      ragQuerySchema,
+      { question, category, taxYear },
+      'Invalid rag:query payload'
+    );
+    logger.info('RAG query received');
     await ensureServicesInitialized();
 
     try {
+      const targetTaxYear = resolveActiveTaxYear(validatedRequest.taxYear);
+      await setActiveTaxYear(targetTaxYear);
       const response = await retriever.query({
-        question,
-        category: category as KnowledgeCategory | undefined,
-        includeSourceCitations: true
+        question: validatedRequest.question,
+        category: validatedRequest.category as KnowledgeCategory | undefined,
+        includeSourceCitations: true,
+        taxYear: targetTaxYear
       });
 
       return response;
@@ -719,10 +871,12 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('rag:search', async (_event, query: string, topK: number = 5) => {
-    logger.debug('Knowledge base search:', query);
+    const validatedQuery = parseOrThrow(textInputSchema, query, 'Invalid rag:search query');
+    const validatedTopK = Math.max(1, Math.min(20, Math.floor(topK || 5)));
+    logger.debug('Knowledge base search', { topK: validatedTopK });
 
     try {
-      const results = await knowledgeBase.search(query, topK);
+      const results = await knowledgeBase.search(validatedQuery, validatedTopK);
       return results.map(r => ({
         title: r.chunk.metadata.title,
         content: r.chunk.content,
@@ -798,7 +952,7 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('fs:selectDirectory', async () => {
     const result = await dialog.showOpenDialog({
       properties: ['openDirectory'],
-      title: 'Ordner auswählen'
+      title: 'Ordner auswÃ¤hlen'
     });
 
     if (result.canceled || result.filePaths.length === 0) {
@@ -809,10 +963,13 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('fs:selectFiles', async (_event, filters?: Array<{ name: string; extensions: string[] }>) => {
+    const validatedFilters = filters
+      ? parseOrThrow(selectFilesFiltersSchema, filters, 'Invalid fs:selectFiles filters')
+      : undefined;
     const result = await dialog.showOpenDialog({
       properties: ['openFile', 'multiSelections'],
-      title: 'Dateien auswählen',
-      filters: filters || [
+      title: 'Dateien auswÃ¤hlen',
+      filters: validatedFilters || [
         { name: 'Dokumente', extensions: ['pdf', 'png', 'jpg', 'jpeg'] },
         { name: 'Alle Dateien', extensions: ['*'] }
       ]
@@ -826,14 +983,20 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('fs:openPath', async (_event, filePath: string) => {
-    await shell.openPath(filePath);
+    const validatedPath = parseOrThrow(filePathSchema, filePath, 'Invalid fs:openPath payload');
+    await shell.openPath(validatedPath);
   });
 
   ipcMain.handle('fs:saveFile', async (_event, defaultName: string, filters?: Array<{ name: string; extensions: string[] }>) => {
+    const request = parseOrThrow(
+      saveFileRequestSchema,
+      { defaultName, filters },
+      'Invalid fs:saveFile payload'
+    );
     const result = await dialog.showSaveDialog({
       title: 'Datei speichern',
-      defaultPath: defaultName,
-      filters: filters || [
+      defaultPath: request.defaultName,
+      filters: request.filters || [
         { name: 'PDF', extensions: ['pdf'] },
         { name: 'Alle Dateien', extensions: ['*'] }
       ]
@@ -851,66 +1014,122 @@ export function registerIpcHandlers(): void {
   // ========================================
 
   const apiKeysPath = path.join(app.getPath('userData'), 'api-keys.enc');
-  const ALLOWED_KEY_NAMES = ['anthropicApiKey', 'openaiApiKey', 'geminiApiKey', 'openaiCompatibleApiKey'];
+  const getApiKeyStorageMode = (): 'encrypted' | 'unavailable' =>
+    safeStorage.isEncryptionAvailable() ? 'encrypted' : 'unavailable';
+
+  const assertEncryptedStorageAvailable = (): void => {
+    if (getApiKeyStorageMode() !== 'encrypted') {
+      throw new Error(
+        'Encrypted API key storage is not available on this system. Please enable OS-level secure storage.'
+      );
+    }
+  };
+
+  const maskKey = (value: string): string =>
+    value.length > 12 ? `${value.substring(0, 6)}...${value.substring(value.length - 4)}` : '***';
+
+  const applyKeysToLlmRuntime = (keys: Record<string, string>): void => {
+    llmService.setConfig({
+      anthropicApiKey: keys.anthropicApiKey || undefined,
+      openaiApiKey: keys.openaiApiKey || undefined,
+      geminiApiKey: keys.geminiApiKey || undefined,
+      openaiCompatibleApiKey: keys.openaiCompatibleApiKey || undefined
+    });
+  };
 
   const loadEncryptedKeys = (): Record<string, string> => {
     try {
-      if (fs.existsSync(apiKeysPath) && safeStorage.isEncryptionAvailable()) {
-        const encrypted = fs.readFileSync(apiKeysPath);
-        const decrypted = safeStorage.decryptString(encrypted);
-        return JSON.parse(decrypted);
+      if (!fs.existsSync(apiKeysPath)) {
+        return {};
       }
+
+      assertEncryptedStorageAvailable();
+      const encrypted = fs.readFileSync(apiKeysPath);
+      const decrypted = safeStorage.decryptString(encrypted);
+      const parsed = JSON.parse(decrypted) as Record<string, string>;
+      return parsed;
     } catch (error) {
-      logger.error('Error loading encrypted API keys:', error);
+      logger.error('Error loading encrypted API keys', error);
+      throw error;
     }
-    return {};
   };
 
   const saveEncryptedKeys = (keys: Record<string, string>): void => {
-    try {
-      if (safeStorage.isEncryptionAvailable()) {
-        const encrypted = safeStorage.encryptString(JSON.stringify(keys));
-        fs.writeFileSync(apiKeysPath, encrypted);
-      } else {
-        logger.warn('safeStorage encryption not available, falling back to settings file');
-        const settings = loadSettings();
-        Object.assign(settings, keys);
-        saveSettings(settings);
-      }
-    } catch (error) {
-      logger.error('Error saving encrypted API keys:', error);
-    }
+    assertEncryptedStorageAvailable();
+    const encrypted = safeStorage.encryptString(JSON.stringify(keys));
+    fs.writeFileSync(apiKeysPath, encrypted);
+    applyKeysToLlmRuntime(keys);
   };
 
   ipcMain.handle('apiKeys:get', async (_event, keyName: string) => {
-    if (!ALLOWED_KEY_NAMES.includes(keyName)) {
-      throw new Error(`Invalid API key name: ${keyName}`);
-    }
+    const validatedKeyName = parseOrThrow(apiKeyNameSchema, keyName, 'Invalid apiKeys:get keyName');
     const keys = loadEncryptedKeys();
-    return keys[keyName] || '';
+    return keys[validatedKeyName] || '';
   });
 
   ipcMain.handle('apiKeys:set', async (_event, keyName: string, value: string) => {
-    if (!ALLOWED_KEY_NAMES.includes(keyName)) {
-      throw new Error(`Invalid API key name: ${keyName}`);
-    }
+    const validatedKeyName = parseOrThrow(apiKeyNameSchema, keyName, 'Invalid apiKeys:set keyName');
+    const validatedValue = parseOrThrow(apiKeyValueSchema, value, 'Invalid apiKeys:set value');
+
     const keys = loadEncryptedKeys();
-    if (value) {
-      keys[keyName] = value;
+    if (validatedValue) {
+      keys[validatedKeyName] = validatedValue;
     } else {
-      delete keys[keyName];
+      delete keys[validatedKeyName];
     }
+
     saveEncryptedKeys(keys);
   });
 
   ipcMain.handle('apiKeys:getAll', async () => {
-    const keys = loadEncryptedKeys();
-    // Return masked versions for display
-    const masked: Record<string, string> = {};
-    for (const [key, value] of Object.entries(keys)) {
-      masked[key] = value ? `${value.substring(0, 8)}...${value.substring(value.length - 4)}` : '';
+    const storageMode = getApiKeyStorageMode();
+    if (storageMode !== 'encrypted') {
+      return {
+        anthropicApiKey: '',
+        openaiApiKey: '',
+        geminiApiKey: '',
+        openaiCompatibleApiKey: '',
+        _storageMode: storageMode
+      };
     }
-    return masked;
+
+    const keys = loadEncryptedKeys();
+    return {
+      anthropicApiKey: keys.anthropicApiKey ? maskKey(keys.anthropicApiKey) : '',
+      openaiApiKey: keys.openaiApiKey ? maskKey(keys.openaiApiKey) : '',
+      geminiApiKey: keys.geminiApiKey ? maskKey(keys.geminiApiKey) : '',
+      openaiCompatibleApiKey: keys.openaiCompatibleApiKey ? maskKey(keys.openaiCompatibleApiKey) : '',
+      _storageMode: storageMode
+    };
+  });
+
+  try {
+    if (getApiKeyStorageMode() === 'encrypted') {
+      applyKeysToLlmRuntime(loadEncryptedKeys());
+    } else {
+      logger.warn('Secure API key storage unavailable; cloud providers remain disabled');
+    }
+  } catch (error) {
+    logger.warn('Could not initialize API keys at startup', error);
+  }
+
+  // ========================================
+  // Tax Rules Diagnostics
+  // ========================================
+
+  ipcMain.handle('taxRules:getSupportedYears', async () => {
+    return listSupportedTaxRuleYears();
+  });
+
+  ipcMain.handle('taxRules:getStatus', async (_event, taxYear?: number) => {
+    const year = typeof taxYear === 'undefined'
+      ? resolveActiveTaxYear()
+      : parseOrThrow(taxYearSchema, taxYear, 'Invalid taxRules:getStatus year');
+    return getTaxRuleStatus(year);
+  });
+
+  ipcMain.handle('taxRules:getDiagnostics', async () => {
+    return getAllTaxRuleStatuses();
   });
 
   // ========================================
@@ -939,16 +1158,23 @@ export function registerIpcHandlers(): void {
   };
 
   ipcMain.handle('settings:get', async (_event, key: string) => {
-    logger.debug('Getting setting:', key);
+    const validatedKey = parseOrThrow(settingKeySchema, key, 'Invalid settings:get key');
+    logger.debug('Getting setting', { key: validatedKey });
     const settings = loadSettings();
-    return settings[key] ?? null;
+    return settings[validatedKey] ?? null;
   });
 
   ipcMain.handle('settings:set', async (_event, key: string, value: unknown) => {
-    logger.info('Setting:', key, '=', value);
+    const validatedKey = parseOrThrow(settingKeySchema, key, 'Invalid settings:set key');
+    logger.info('Updating setting', { key: validatedKey });
     const settings = loadSettings();
-    settings[key] = value;
+    settings[validatedKey] = value;
     saveSettings(settings);
+
+    if (validatedKey === SETTINGS_TAX_YEAR_KEY) {
+      const nextTaxYear = parseOrThrow(taxYearSchema, value, 'Invalid currentTaxYear setting');
+      await setActiveTaxYear(nextTaxYear);
+    }
   });
 
   ipcMain.handle('settings:getAll', async () => {
@@ -958,6 +1184,7 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('settings:reset', async () => {
     logger.info('Resetting all settings...');
     saveSettings({});
+    currentTaxYear = null;
   });
 
   logger.info('IPC handlers registered successfully');
@@ -977,3 +1204,4 @@ export function cleanupOnQuit(): void {
     logger.error('Cleanup error:', error);
   }
 }
+
