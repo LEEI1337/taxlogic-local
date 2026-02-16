@@ -5,6 +5,41 @@
 
 ---
 
+## Update Addendum (2026-02-16)
+
+This file contains historical findings from 2026-02-05.
+For current measured status, use:
+
+- `docs/AUDIT_REPORT_2026-02-16.md`
+- `docs/PROJECT_STATUS.md`
+
+Current security gate baseline (2026-02-16):
+
+- `npm audit --omit=dev --audit-level=moderate`: pass (0 vulnerabilities)
+- `npm audit --audit-level=moderate`: pass
+- Full-tree audit snapshot: `5 low vulnerabilities` (0 moderate, 0 high, 0 critical)
+
+Additional update in same implementation wave:
+
+1. `electron` upgraded to `35.7.5` (production moderate advisory removed).
+2. `vitest`/`@vitest/ui` upgraded to `4.0.18` (esbuild/vite advisory path removed from current test stack).
+3. Legacy direct `electron-rebuild` dependency removed in favor of `@electron/rebuild` direct usage.
+4. Dependency overrides pinned to patched versions:
+   - `tar@^7.5.9`
+   - `webpack-dev-server@^5.2.2`
+
+Current CI policy:
+
+1. Production dependency tree blocks on `moderate`.
+2. Full dependency tree blocks on `moderate`.
+
+Reasoning:
+
+- Production path is clean at moderate.
+- Full tree is also clean at moderate/high/critical; remaining findings are low-severity transitive dev-tool issues.
+
+---
+
 ## Executive Summary
 
 This document provides a comprehensive security audit of the TaxLogic.local application. The audit identified **37 total vulnerabilities** in dependencies, with **1 moderate vulnerability affecting production code**.

@@ -1,12 +1,12 @@
-# Governance / Projektführung
+﻿# Governance / ProjektfÃ¼hrung
 
 ```
- ██████╗  ██████╗ ██╗   ██╗███████╗██████╗ ███╗   ██╗ █████╗ ███╗   ██╗ ██████╗███████╗
-██╔════╝ ██╔═══██╗██║   ██║██╔════╝██╔══██╗████╗  ██║██╔══██╗████╗  ██║██╔════╝██╔════╝
-██║  ███╗██║   ██║██║   ██║█████╗  ██████╔╝██╔██╗ ██║███████║██╔██╗ ██║██║     █████╗  
-██║   ██║██║   ██║╚██╗ ██╔╝██╔══╝  ██╔══██╗██║╚██╗██║██╔══██║██║╚██╗██║██║     ██╔══╝  
-╚██████╔╝╚██████╔╝ ╚████╔╝ ███████╗██║  ██║██║ ╚████║██║  ██║██║ ╚████║╚██████╗███████╗
- ╚═════╝  ╚═════╝   ╚═══╝  ╚══════╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝╚═╝  ╚═══╝ ╚═════╝╚══════╝
+ â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•—  â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•— â–ˆâ–ˆâ•—   â–ˆâ–ˆâ•—â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•—â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•— â–ˆâ–ˆâ–ˆâ•—   â–ˆâ–ˆâ•— â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•— â–ˆâ–ˆâ–ˆâ•—   â–ˆâ–ˆâ•— â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•—â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•—
+â–ˆâ–ˆâ•”â•â•â•â•â• â–ˆâ–ˆâ•”â•â•â•â–ˆâ–ˆâ•—â–ˆâ–ˆâ•‘   â–ˆâ–ˆâ•‘â–ˆâ–ˆâ•”â•â•â•â•â•â–ˆâ–ˆâ•”â•â•â–ˆâ–ˆâ•—â–ˆâ–ˆâ–ˆâ–ˆâ•—  â–ˆâ–ˆâ•‘â–ˆâ–ˆâ•”â•â•â–ˆâ–ˆâ•—â–ˆâ–ˆâ–ˆâ–ˆâ•—  â–ˆâ–ˆâ•‘â–ˆâ–ˆâ•”â•â•â•â•â•â–ˆâ–ˆâ•”â•â•â•â•â•
+â–ˆâ–ˆâ•‘  â–ˆâ–ˆâ–ˆâ•—â–ˆâ–ˆâ•‘   â–ˆâ–ˆâ•‘â–ˆâ–ˆâ•‘   â–ˆâ–ˆâ•‘â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•—  â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•”â•â–ˆâ–ˆâ•”â–ˆâ–ˆâ•— â–ˆâ–ˆâ•‘â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•‘â–ˆâ–ˆâ•”â–ˆâ–ˆâ•— â–ˆâ–ˆâ•‘â–ˆâ–ˆâ•‘     â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•—  
+â–ˆâ–ˆâ•‘   â–ˆâ–ˆâ•‘â–ˆâ–ˆâ•‘   â–ˆâ–ˆâ•‘â•šâ–ˆâ–ˆâ•— â–ˆâ–ˆâ•”â•â–ˆâ–ˆâ•”â•â•â•  â–ˆâ–ˆâ•”â•â•â–ˆâ–ˆâ•—â–ˆâ–ˆâ•‘â•šâ–ˆâ–ˆâ•—â–ˆâ–ˆâ•‘â–ˆâ–ˆâ•”â•â•â–ˆâ–ˆâ•‘â–ˆâ–ˆâ•‘â•šâ–ˆâ–ˆâ•—â–ˆâ–ˆâ•‘â–ˆâ–ˆâ•‘     â–ˆâ–ˆâ•”â•â•â•  
+â•šâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•”â•â•šâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•”â• â•šâ–ˆâ–ˆâ–ˆâ–ˆâ•”â• â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•—â–ˆâ–ˆâ•‘  â–ˆâ–ˆâ•‘â–ˆâ–ˆâ•‘ â•šâ–ˆâ–ˆâ–ˆâ–ˆâ•‘â–ˆâ–ˆâ•‘  â–ˆâ–ˆâ•‘â–ˆâ–ˆâ•‘ â•šâ–ˆâ–ˆâ–ˆâ–ˆâ•‘â•šâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•—â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•—
+ â•šâ•â•â•â•â•â•  â•šâ•â•â•â•â•â•   â•šâ•â•â•â•  â•šâ•â•â•â•â•â•â•â•šâ•â•  â•šâ•â•â•šâ•â•  â•šâ•â•â•â•â•šâ•â•  â•šâ•â•â•šâ•â•  â•šâ•â•â•â• â•šâ•â•â•â•â•â•â•šâ•â•â•â•â•â•â•
 ```
 
 Dieses Dokument beschreibt die Governance-Struktur des TaxLogic.local Projekts.
@@ -15,7 +15,7 @@ This document describes the governance structure of the TaxLogic.local project.
 
 ---
 
-## Übersicht / Overview
+## Ãœbersicht / Overview
 
 TaxLogic.local ist ein Open-Source-Projekt unter der MIT-Lizenz. Das Projekt wird von der Community entwickelt und von einem Kernteam gepflegt.
 
@@ -25,9 +25,9 @@ TaxLogic.local is an open-source project under the MIT license. The project is d
 
 ## Rollen / Roles
 
-### 👑 Maintainer
+### ðŸ‘‘ Maintainer
 
-Maintainer sind für die Gesamtführung des Projekts verantwortlich.
+Maintainer sind fÃ¼r die GesamtfÃ¼hrung des Projekts verantwortlich.
 
 **Verantwortlichkeiten:**
 - Review und Merge von Pull Requests
@@ -41,20 +41,20 @@ Maintainer sind für die Gesamtführung des Projekts verantwortlich.
 |------|--------|---------|
 | TaxLogic Team | @taxlogic | Alle Bereiche |
 
-### 🔧 Contributors
+### ðŸ”§ Contributors
 
 Contributors sind Personen, die zum Projekt beitragen.
 
-**Arten von Beiträgen:**
-- Code-Beiträge (Features, Bugfixes)
+**Arten von BeitrÃ¤gen:**
+- Code-BeitrÃ¤ge (Features, Bugfixes)
 - Dokumentation
 - Tests
 - Bug Reports
 - Feature Requests
-- Übersetzungen
+- Ãœbersetzungen
 - Design
 
-### 👥 Community
+### ðŸ‘¥ Community
 
 Alle Nutzer und Interessenten des Projekts.
 
@@ -64,11 +64,11 @@ Alle Nutzer und Interessenten des Projekts.
 
 ### RFC-Prozess (Request for Comments)
 
-Für größere Änderungen verwenden wir einen RFC-Prozess:
+FÃ¼r grÃ¶ÃŸere Ã„nderungen verwenden wir einen RFC-Prozess:
 
 1. **Proposal erstellen**
    - Erstellen Sie ein Issue mit dem Tag `[RFC]`
-   - Beschreiben Sie das Problem und die vorgeschlagene Lösung
+   - Beschreiben Sie das Problem und die vorgeschlagene LÃ¶sung
    
 2. **Diskussion**
    - Mindestens 7 Tage offene Diskussion
@@ -76,7 +76,7 @@ Für größere Änderungen verwenden wir einen RFC-Prozess:
    
 3. **Entscheidung**
    - Maintainer treffen finale Entscheidung
-   - Dokumentation der Gründe
+   - Dokumentation der GrÃ¼nde
 
 ### Abstimmungsregeln / Voting Rules
 
@@ -93,7 +93,7 @@ Bei kontroversen Entscheidungen:
 
 ## Kommunikation / Communication
 
-### Kanäle / Channels
+### KanÃ¤le / Channels
 
 | Kanal | Zweck |
 |-------|-------|
@@ -103,7 +103,7 @@ Bei kontroversen Entscheidungen:
 
 ### Sprache / Language
 
-- **Primär:** Deutsch (für Endanwender-Dokumentation)
+- **PrimÃ¤r:** Deutsch (fÃ¼r Endanwender-Dokumentation)
 - **Code/Commits:** Englisch
 - **Technische Docs:** Zweisprachig (DE/EN)
 
@@ -118,9 +118,9 @@ Wir folgen [Semantic Versioning](https://semver.org/):
 ```
 MAJOR.MINOR.PATCH[-PRERELEASE]
 
-MAJOR - Inkompatible Änderungen
-MINOR - Neue Features, abwärtskompatibel
-PATCH - Bugfixes, abwärtskompatibel
+MAJOR - Inkompatible Ã„nderungen
+MINOR - Neue Features, abwÃ¤rtskompatibel
+PATCH - Bugfixes, abwÃ¤rtskompatibel
 ```
 
 ### Release-Zyklus / Release Cycle
@@ -136,30 +136,33 @@ PATCH - Bugfixes, abwärtskompatibel
 
 - [ ] Alle Tests bestehen
 - [ ] CHANGELOG.md aktualisiert
-- [ ] Version in package.json erhöht
+- [ ] Version in package.json erhÃ¶ht
 - [ ] Dokumentation aktualisiert
-- [ ] Security Audit durchgeführt
+- [ ] Security Audit durchgefÃ¼hrt
 - [ ] Release Notes erstellt
-- [ ] Ankündigung vorbereitet
+- [ ] `npm run tax-rules:doctor` besteht
+- [ ] `npm audit --omit=dev --audit-level=moderate` besteht
+- [ ] `npm audit --audit-level=moderate` besteht
+- [ ] AnkÃ¼ndigung vorbereitet
 
 ---
 
 ## Verhaltensregeln / Code of Conduct
 
-Alle Teilnehmer müssen unserem [Code of Conduct](../CODE_OF_CONDUCT.md) folgen.
+Alle Teilnehmer mÃ¼ssen unserem [Code of Conduct](../CODE_OF_CONDUCT.md) folgen.
 
 **Zusammenfassung:**
 - Respektvoller Umgang
 - Konstruktives Feedback
 - Inklusive Sprache
-- Keine Belästigung
+- Keine BelÃ¤stigung
 
 ### Durchsetzung / Enforcement
 
-| Verstoß | Konsequenz |
+| VerstoÃŸ | Konsequenz |
 |---------|------------|
 | Erster | Warnung |
-| Zweiter | Temporäre Sperre |
+| Zweiter | TemporÃ¤re Sperre |
 | Dritter | Dauerhafte Sperre |
 | Schwer | Sofortige Sperre |
 
@@ -169,7 +172,7 @@ Alle Teilnehmer müssen unserem [Code of Conduct](../CODE_OF_CONDUCT.md) folgen.
 
 ### Schwachstellenmeldung / Vulnerability Reporting
 
-- **NICHT** öffentlich melden
+- **NICHT** Ã¶ffentlich melden
 - E-Mail an: security@taxlogic.local
 - Siehe [SECURITY.md](../SECURITY.md)
 
@@ -201,7 +204,7 @@ Mit dem Einreichen von Code stimmen Contributors zu:
 
 Copyright-Notices:
 - Projekt-Copyright: TaxLogic Team
-- Beitragende behalten Copyright für ihre Beiträge
+- Beitragende behalten Copyright fÃ¼r ihre BeitrÃ¤ge
 - Alle unter MIT-Lizenz
 
 ---
@@ -212,7 +215,7 @@ Copyright-Notices:
 
 | Dokument | Beschreibung |
 |----------|--------------|
-| [README.md](../README.md) | Projektübersicht |
+| [README.md](../README.md) | ProjektÃ¼bersicht |
 | [CONTRIBUTING.md](../CONTRIBUTING.md) | Beitragsrichtlinien |
 | [CODE_OF_CONDUCT.md](../CODE_OF_CONDUCT.md) | Verhaltensregeln |
 | [SECURITY.md](../SECURITY.md) | Sicherheitsrichtlinien |
@@ -227,9 +230,9 @@ Copyright-Notices:
 
 ---
 
-## Änderungen an diesem Dokument / Changes to this Document
+## Ã„nderungen an diesem Dokument / Changes to this Document
 
-Änderungen an der Governance erfordern:
+Ã„nderungen an der Governance erfordern:
 1. RFC mit Tag `[GOVERNANCE]`
 2. Mindestens 14 Tage Diskussion
 3. Einstimmige Zustimmung der Maintainer

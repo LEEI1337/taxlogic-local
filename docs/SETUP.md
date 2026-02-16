@@ -242,7 +242,25 @@ Tritt auf wenn Squirrel den Parent-Prozess schliesst. Behoben durch:
 - [Benutzerhandbuch](USER_GUIDE.md)
 - [Architektur](ARCHITECTURE.md)
 - [API Dokumentation](API.md)
+- [Projektstatus](PROJECT_STATUS.md)
+- [Tax Rules Runbook](TAX_RULES_RUNBOOK.md)
+- [Audit Report 2026-02-16](AUDIT_REPORT_2026-02-16.md)
 
 ---
 
-*Letzte Aktualisierung: 2026-02-11*
+## Setup-Validierung (Empfohlen)
+
+Nach der Einrichtung folgende Checks ausfuehren:
+
+```bash
+npm run lint
+npm run type-check
+npm test
+npm run tax-rules:doctor
+npm audit --omit=dev --audit-level=moderate
+npm audit --audit-level=moderate
+```
+
+---
+
+*Letzte Aktualisierung: 2026-02-16*

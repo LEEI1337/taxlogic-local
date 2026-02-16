@@ -14,6 +14,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Year-versioned tax rules (`2024-2026`) under `config/tax-rules/`
+- Source snapshot assertions under `config/tax-sources/`
+- Year-versioned RAG knowledge packs under `config/tax-knowledge/`
+- New tax-rules CLI suite:
+  - `tax-rules:check`
+  - `tax-rules:verify`
+  - `tax-rules:init-year`
+  - `tax-rules:report`
+  - `tax-rules:sync-rag`
+  - `tax-rules:doctor`
+- New IPC validation schemas in `src/main/ipcValidation.ts`
+- New tax-rules IPC channels:
+  - `taxRules:getStatus`
+  - `taxRules:getSupportedYears`
+  - `taxRules:getDiagnostics`
+- Monthly freshness workflow: `.github/workflows/tax-rules-freshness.yml`
+- IPC integration tests for validation and runtime rule blocking:
+  - `tests/unit/ipcHandlers.integration.test.ts`
+
+### Changed
+- Analyzer and workflow now load tax constants from year-based rule packs instead of hardcoded 2024 values
+- Interview start API now supports optional tax year:
+  - `interview.start(userProfile, taxYear?)`
+- Renderer now supports active tax year selection and persistence
+- RAG retriever now emits source-year metadata and mismatch warnings
+- Main process security hardening:
+  - stricter navigation handling
+  - logger redaction for sensitive fields
+  - API key storage flow without plaintext fallback
+- CI quality/security gates updated:
+  - `lint`, `type-check`, `test`, `tax-rules:check`, `tax-rules:verify`
+  - `npm audit --omit=dev --audit-level=moderate`
+  - `npm audit --audit-level=moderate`
+- Dependency overrides added for vulnerable transitive toolchain paths:
+  - `tar@^7.5.9`
+  - `webpack-dev-server@^5.2.2`
+
+### Security
+- Upgraded LangChain packages to remove production moderate `langsmith` advisory path
+- Removed unused runtime dependencies `@langchain/community` and `langchain`
+- Upgraded `electron` to `^35.7.5`
+- Upgraded `vitest` and `@vitest/ui` to `^4.0.18`
+
 ### Geplant / Planned
 - FinanzOnline API Integration
 - Multi-Language Support (DE/EN)

@@ -19,6 +19,21 @@
 
 The app guides you through an AI-powered interview, processes your documents via OCR, calculates deductions, and generates ready-to-submit L1/L1ab/L1k tax forms with a step-by-step FinanzOnline filing guide.
 
+### Current Status (2026-02-16)
+
+- Year-based tax rules implemented for 2024-2026 with runtime stale/missing blocking.
+- Tax year is now propagated end-to-end (UI -> main -> backend).
+- RAG content is versioned by year with source-year mismatch warnings.
+- New tax-rules maintenance CLI and CI gates are active.
+
+Key docs:
+
+- `docs/PROJECT_STATUS.md`
+- `docs/AUDIT_REPORT_2026-02-16.md`
+- `docs/IMPLEMENTATION_LOG_2026-02-16.md`
+- `docs/TAX_RULES_RUNBOOK.md`
+- `docs/TOOLCHAIN_SECURITY_UPGRADE_PLAN.md`
+
 ---
 
 ## Requirements
@@ -225,7 +240,7 @@ TaxLogic.local
 # Start dev server (hot reload)
 npm run dev
 
-# Run tests (163 tests)
+# Run tests (172 tests)
 npm test
 
 # Type checking
@@ -234,6 +249,11 @@ npm run type-check
 # Lint
 npm run lint
 npm run lint:fix
+
+# Tax rule maintenance
+npm run tax-rules:check
+npm run tax-rules:verify
+npm run tax-rules:doctor
 
 # Build installer
 npm run make
@@ -267,6 +287,13 @@ GEMINI_API_KEY=...
 # Database (default: ./db/taxlogic.db)
 DATABASE_PATH=./db/taxlogic.db
 ```
+
+### Tax Rule Files
+
+- `config/tax-rules/` - year-based rule packs (2024-2026)
+- `config/tax-sources/` - source snapshots and verification assertions
+- `config/tax-knowledge/` - year-versioned RAG knowledge files
+- `scripts/tax-rules/` - CLI tools (`check`, `verify`, `init-year`, `report`, `sync-rag`, `doctor`)
 
 ---
 
@@ -317,7 +344,7 @@ taxlogic-local/
 │       └── workflows/
 │           └── taxWorkflow.ts      # LangGraph state machine
 │
-├── tests/                          # 163 tests (vitest)
+├── tests/                          # 172 tests (vitest)
 ├── forge.config.ts                 # Electron Forge + Squirrel
 ├── webpack.main.config.ts          # Main process webpack (externals: sql.js)
 ├── webpack.renderer.config.ts      # Renderer webpack (filtered rules)

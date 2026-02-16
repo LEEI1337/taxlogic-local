@@ -1,5 +1,30 @@
 # TaxLogic.local - Architektur
 
+## Update Addendum (2026-02-16)
+
+This document contains baseline architecture plus the following implemented updates:
+
+1. New tax-rules module in backend:
+   - `src/backend/taxRules/types.ts`
+   - `src/backend/taxRules/schema.ts`
+   - `src/backend/taxRules/loader.ts`
+   - `src/backend/taxRules/status.ts`
+2. Rule packs and source snapshots moved to configuration:
+   - `config/tax-rules/<year>.json`
+   - `config/tax-sources/<year>/summary.json`
+3. RAG knowledge is now year-versioned:
+   - `config/tax-knowledge/<year>/*.md`
+4. Main process now enforces rule status gates for tax-critical operations.
+5. Preload API now exposes dedicated tax-rules endpoints.
+
+Use this document together with:
+
+- `docs/API.md`
+- `docs/PROJECT_STATUS.md`
+- `docs/TAX_RULES_RUNBOOK.md`
+
+---
+
 ## Uebersicht
 
 TaxLogic.local ist eine Electron-basierte Desktop-Anwendung fuer die KI-gestuetzte Steuererklaerung in Oesterreich. Die Architektur folgt dem Prinzip "Privacy First" - alle Daten bleiben lokal.

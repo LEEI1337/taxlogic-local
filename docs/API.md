@@ -1,549 +1,147 @@
-# TaxLogic.local - API Dokumentation
+# TaxLogic.local API Reference
 
-## Übersicht
-
-Diese Dokumentation beschreibt alle IPC-APIs, die zwischen dem Frontend (Renderer) und Backend (Main Process) verwendet werden.
-
----
-
-## Frontend API (window.electronAPI)
-
-Alle APIs sind über das globale `window.electronAPI` Objekt verfügbar.
-
-### LLM Service
-
-#### `llm.checkConnection()`
-
-Prüft die Verbindung zu allen konfigurierten LLM-Providern.
-
-```typescript
-interface ConnectionStatus {
-  connected: boolean;
-  provider: string;
-  model: string;
-  error?: string;
-}
-
-interface AllConnectionStatus {
-  ollama: ConnectionStatus;
-  lmStudio: ConnectionStatus;
-  claude: ConnectionStatus;
-}
-
-const status: AllConnectionStatus = await window.electronAPI.llm.checkConnection();
-```
-
-#### `llm.chat(messages, systemPrompt?)`
-
-Sendet Nachrichten an das LLM und erhält eine Antwort.
-
-```typescript
-interface Message {
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-}
-
-interface LLMResponse {
-  content: string;
-  provider: string;
-  model: string;
-  tokensUsed?: number;
-}
-
-const response: LLMResponse = await window.electronAPI.llm.chat(
-  [{ role: 'user', content: 'Hallo!' }],
-  'Du bist ein hilfreicher Steuerberater.'
-);
-```
-
-#### `llm.setProvider(provider)`
-
-Wechselt den aktiven LLM-Provider.
-
-```typescript
-type LLMProvider = 'ollama' | 'lmStudio' | 'claude';
-
-await window.electronAPI.llm.setProvider('ollama');
-```
-
-#### `llm.setModel(model)`
-
-Wechselt das aktive Modell.
-
-```typescript
-await window.electronAPI.llm.setModel('mistral:latest');
-```
-
-#### `llm.getAvailableModels()`
-
-Listet verfügbare Modelle des aktuellen Providers.
-
-```typescript
-const models: string[] = await window.electronAPI.llm.getAvailableModels();
-// ['mistral:latest', 'llama2:latest', ...]
-```
+Date: 2026-02-16  
+Source of truth: `src/main/preload.ts`
 
 ---
 
-### Database Service
+## Overview
 
-#### `db.saveProfile(profile)`
+The renderer interacts with backend functionality through `window.electronAPI`.
 
-Speichert oder aktualisiert das Benutzerprofil.
+Design principles:
 
-```typescript
-interface UserProfile {
-  id?: string;
-  email?: string;
-  firstName: string;
-  lastName: string;
-  taxId?: string;
-  address?: string;
-  // ... weitere Felder
-}
-
-const savedProfile = await window.electronAPI.db.saveProfile({
-  firstName: 'Max',
-  lastName: 'Mustermann',
-  taxId: '123/456/789'
-});
-```
-
-#### `db.getProfile()`
-
-Lädt das aktuelle Benutzerprofil.
-
-```typescript
-const profile: UserProfile | null = await window.electronAPI.db.getProfile();
-```
-
-#### `db.saveInterview(interviewData)`
-
-Speichert Interview-Daten.
-
-```typescript
-interface InterviewData {
-  taxYear: number;
-  status: 'in_progress' | 'completed';
-  data: Record<string, any>;
-}
-
-const interview = await window.electronAPI.db.saveInterview({
-  taxYear: 2024,
-  status: 'in_progress',
-  data: { income: 45000, hasHomeOffice: true }
-});
-```
-
-#### `db.getInterview(taxYear)`
-
-Lädt Interview für ein bestimmtes Steuerjahr.
-
-```typescript
-const interview = await window.electronAPI.db.getInterview(2024);
-```
+1. Context isolation is enabled.
+2. Only allowlisted IPC channels are exposed.
+3. Renderer does not receive raw `ipcRenderer`.
 
 ---
 
-### OCR Service
+## Global API
 
-#### `ocr.processImage(imagePath)`
-
-Führt OCR auf einem Bild durch.
-
-```typescript
-interface OCRResult {
-  text: string;
-  confidence: number;
-  lines: OCRLine[];
-  words: OCRWord[];
-}
-
-const result: OCRResult = await window.electronAPI.ocr.processImage('/path/to/receipt.jpg');
+```ts
+window.electronAPI
 ```
 
-#### `ocr.extractExpenseData(ocrResult)`
+Top-level methods:
 
-Extrahiert strukturierte Daten aus OCR-Ergebnis.
-
-```typescript
-interface ExtractedData {
-  amount?: number;
-  date?: string;
-  merchant?: string;
-  category?: string;
-  items?: string[];
-}
-
-const data: ExtractedData = await window.electronAPI.ocr.extractExpenseData(ocrResult);
-```
+- `minimize(): Promise<void>`
+- `maximize(): Promise<void>`
+- `close(): Promise<void>`
+- `isMaximized(): Promise<boolean>`
+- `getVersion(): Promise<string>`
+- `getUserDataPath(): Promise<string>`
+- `getPlatform(): Promise<NodeJS.Platform>`
+- `invoke(channel, ...args): Promise<unknown>` (allowlisted channels only)
+- `on(channel, callback): () => void` (allowlisted channels only)
+- `once(channel, callback): void`
+- `removeAllListeners(channel): void`
 
 ---
 
-### Document Service
+## Domain APIs
 
-#### `document.upload(filePaths)`
+## `llm`
 
-Lädt Dokumente hoch und verarbeitet sie.
+- `checkStatus(): Promise<{ ollama: boolean; lmStudio: boolean; claude: boolean; openai: boolean; gemini: boolean; openaiCompatible: boolean }>`
+- `getAvailableModels(): Promise<string[]>`
+- `setModel(modelName: string): Promise<void>`
+- `query(prompt: string, conversationHistory?: Array<{ role: string; content: string }>): Promise<string>`
 
-```typescript
-interface ProcessedDocument {
-  id: string;
-  fileName: string;
-  category: string;
-  ocrText: string;
-  extractedData: ExtractedData;
-  confidence: number;
-}
+## `interview`
 
-const docs: ProcessedDocument[] = await window.electronAPI.document.upload([
-  '/path/to/receipt1.jpg',
-  '/path/to/receipt2.pdf'
-]);
-```
+- `start(userProfile: Record<string, unknown>, taxYear?: number): Promise<{ message: string; question: Record<string, unknown> | null; interviewId: string }>`
+- `continue(userInput: string): Promise<{ message: string; question: Record<string, unknown> | null; isComplete: boolean; validationError?: string }>`
+- `getProfile(): Promise<Record<string, unknown>>`
+- `save(data: Record<string, unknown>): Promise<void>`
+- `load(id: string): Promise<Record<string, unknown>>`
 
-#### `document.getAll()`
+Important change:
 
-Listet alle hochgeladenen Dokumente.
+- `interview.start` now accepts `taxYear?` as second argument.
 
-```typescript
-const documents: ProcessedDocument[] = await window.electronAPI.document.getAll();
-```
+## `taxRules`
 
-#### `document.delete(documentId)`
+- `getStatus(taxYear?: number): Promise<{ year: number; state: 'ok' | 'missing' | 'stale' | 'invalid' | 'unsupportedYear'; message: string; supportedYears: number[]; verifiedAt?: string; daysSinceVerification?: number }>`
+- `getSupportedYears(): Promise<number[]>`
+- `getDiagnostics(): Promise<Array<{ year: number; state: 'ok' | 'missing' | 'stale' | 'invalid' | 'unsupportedYear'; message: string; supportedYears: number[]; verifiedAt?: string; daysSinceVerification?: number }>>`
 
-Löscht ein Dokument.
+## `documents`
 
-```typescript
-await window.electronAPI.document.delete('doc-123');
-```
+- `upload(filePaths: string[]): Promise<Array<{ id: string; path: string; status: string }>>`
+- `process(documentId: string): Promise<Record<string, unknown>>`
+- `organize(): Promise<Record<string, unknown>>`
+- `getManifest(): Promise<Record<string, unknown>>`
 
-#### `document.updateCategory(documentId, category)`
+## `forms`
 
-Ändert die Kategorie eines Dokuments.
+- `generate(formType: string): Promise<string>`
+- `preview(formType: string): Promise<string>`
+- `export(formType: string, outputPath: string): Promise<void>`
 
-```typescript
-type ExpenseCategory = 
-  | 'werbungskosten'
-  | 'sonderausgaben'
-  | 'aussergewoehnliche_belastungen'
-  | 'homeoffice'
-  | 'pendlerpauschale'
-  | 'sonstige';
+## `guide`
 
-await window.electronAPI.document.updateCategory('doc-123', 'homeoffice');
-```
+- `generate(): Promise<string>`
+- `export(outputPath: string): Promise<string>`
+
+## `fs`
+
+- `selectDirectory(): Promise<string | null>`
+- `selectFiles(filters?: Array<{ name: string; extensions: string[] }>): Promise<string[] | null>`
+- `openPath(path: string): Promise<void>`
+- `saveFile(defaultName: string, filters?: Array<{ name: string; extensions: string[] }>): Promise<string | null>`
 
 ---
 
-### Interview Agent
+## Generic `invoke` Channels
 
-#### `interview.start(taxYear)`
+These channels are currently allowlisted for generic `invoke(...)` usage:
 
-Startet ein neues Interview.
-
-```typescript
-interface InterviewQuestion {
-  id: string;
-  question: string;
-  type: 'text' | 'number' | 'boolean' | 'select';
-  options?: string[];
-  category: string;
-}
-
-const firstQuestion: InterviewQuestion = await window.electronAPI.interview.start(2024);
-```
-
-#### `interview.respond(questionId, answer)`
-
-Beantwortet eine Interview-Frage.
-
-```typescript
-interface InterviewResponse {
-  nextQuestion?: InterviewQuestion;
-  isComplete: boolean;
-  progress: number; // 0-100
-}
-
-const response: InterviewResponse = await window.electronAPI.interview.respond(
-  'q-income',
-  '45000'
-);
-```
-
-#### `interview.getSummary()`
-
-Holt eine Zusammenfassung der Interview-Antworten.
-
-```typescript
-interface InterviewSummary {
-  totalQuestions: number;
-  answeredQuestions: number;
-  categories: {
-    name: string;
-    completed: boolean;
-    answers: Record<string, any>;
-  }[];
-}
-
-const summary: InterviewSummary = await window.electronAPI.interview.getSummary();
-```
+- Window: `window:minimize`, `window:maximize`, `window:close`, `window:isMaximized`
+- App: `app:getVersion`, `app:getUserDataPath`, `app:getPlatform`
+- LLM: `llm:checkStatus`, `llm:getAvailableModels`, `llm:setModel`, `llm:setConfig`, `llm:query`, `llm:queryStream`
+- Interview: `interview:start`, `interview:continue`, `interview:getProfile`, `interview:save`, `interview:load`
+- Documents: `documents:upload`, `documents:process`, `documents:organize`, `documents:getManifest`, `documents:delete`
+- Analysis: `analysis:calculate`, `analysis:getResults`, `analysis:optimize`
+- Forms: `forms:generate`, `forms:preview`, `forms:export`, `forms:getAvailable`
+- Guide: `guide:generate`, `guide:export`
+- DB: `db:getUserProfile`, `db:saveUserProfile`, `db:getInterviews`, `db:getDocuments`, `db:getExpenses`
+- FS: `fs:selectDirectory`, `fs:selectFiles`, `fs:openPath`, `fs:saveFile`
+- Settings: `settings:get`, `settings:set`, `settings:getAll`, `settings:reset`
+- Tax rules: `taxRules:getStatus`, `taxRules:getSupportedYears`, `taxRules:getDiagnostics`
+- API keys: `apiKeys:get`, `apiKeys:set`, `apiKeys:getAll`
 
 ---
 
-### Analyzer Agent
+## Event Channels (`on` / `once`)
 
-#### `analyzer.analyze()`
-
-Analysiert alle gesammelten Daten.
-
-```typescript
-interface TaxAnalysis {
-  grossIncome: number;
-  deductions: {
-    werbungskosten: number;
-    sonderausgaben: number;
-    aussergewoehnlicheBelastungen: number;
-  };
-  taxableIncome: number;
-  estimatedTax: number;
-  estimatedRefund?: number;
-  optimizations: Optimization[];
-}
-
-interface Optimization {
-  title: string;
-  description: string;
-  potentialSavings: number;
-  priority: 'high' | 'medium' | 'low';
-}
-
-const analysis: TaxAnalysis = await window.electronAPI.analyzer.analyze();
-```
+- Window: `window:stateChanged`
+- LLM stream: `llm:streamChunk`, `llm:streamEnd`, `llm:streamError`
+- Progress: `progress:update`, `progress:complete`, `progress:error`
+- Notification: `notification:show`
+- Interview: `interview:questionReceived`, `interview:completed`
+- Menu: `menu:newFiling`, `menu:openFiling`, `menu:save`, `menu:saveAs`, `menu:importDocuments`, `menu:exportForms`, `menu:openSettings`, `menu:startInterview`, `menu:manageDocuments`, `menu:runAnalysis`, `menu:generateForms`, `menu:showGuide`, `menu:checkLLMStatus`, `menu:showAbout`
 
 ---
 
-### Form Generator
+## Validation and Errors
 
-#### `forms.generateL1(data)`
+Main process validates payloads with Zod schemas in `src/main/ipcValidation.ts`.
 
-Generiert das L1-Hauptformular.
+When validation fails:
 
-```typescript
-interface L1FormData {
-  taxYear: number;
-  personalInfo: PersonalInfo;
-  income: IncomeData;
-  deductions: DeductionsData;
-}
+1. request is rejected in main process
+2. renderer receives a thrown error from `invoke(...)`
 
-interface GeneratedForm {
-  id: string;
-  formType: 'L1' | 'L1ab' | 'L1k';
-  filePath: string;
-  generatedAt: string;
-}
+Tax-rule aware operations may throw when the active tax year is:
 
-const form: GeneratedForm = await window.electronAPI.forms.generateL1(l1Data);
-```
-
-#### `forms.generateL1ab(data)`
-
-Generiert das L1ab-Beilagenformular.
-
-```typescript
-interface L1abFormData {
-  taxYear: number;
-  businessIncome?: BusinessIncome;
-  additionalIncome?: AdditionalIncome;
-}
-
-const form: GeneratedForm = await window.electronAPI.forms.generateL1ab(l1abData);
-```
-
-#### `forms.generateL1k(data)`
-
-Generiert das L1k-Formular für Sonderausgaben.
-
-```typescript
-interface L1kFormData {
-  taxYear: number;
-  specialExpenses: SpecialExpenses;
-}
-
-const form: GeneratedForm = await window.electronAPI.forms.generateL1k(l1kData);
-```
-
-#### `forms.getAll()`
-
-Listet alle generierten Formulare.
-
-```typescript
-const forms: GeneratedForm[] = await window.electronAPI.forms.getAll();
-```
-
-#### `forms.download(formId)`
-
-Öffnet einen Download-Dialog für ein Formular.
-
-```typescript
-await window.electronAPI.forms.download('form-123');
-```
+- missing
+- stale
+- invalid
+- unsupported
 
 ---
 
-### Guide Generator
+## Compatibility Note
 
-#### `guide.generate()`
-
-Generiert eine personalisierte Schritt-für-Schritt Anleitung.
-
-```typescript
-interface FilingGuide {
-  id: string;
-  title: string;
-  steps: GuideStep[];
-  checklist: ChecklistItem[];
-  filePath: string;
-}
-
-interface GuideStep {
-  number: number;
-  title: string;
-  description: string;
-  screenshots?: string[];
-}
-
-interface ChecklistItem {
-  text: string;
-  completed: boolean;
-}
-
-const guide: FilingGuide = await window.electronAPI.guide.generate();
-```
-
----
-
-### RAG Service
-
-#### `rag.query(question, category?)`
-
-Stellt eine Frage an die Wissensbasis.
-
-```typescript
-interface RAGResponse {
-  answer: string;
-  sources: Source[];
-  confidence: number;
-}
-
-interface Source {
-  title: string;
-  excerpt: string;
-  url?: string;
-}
-
-const response: RAGResponse = await window.electronAPI.rag.query(
-  'Was kann ich als Pendlerpauschale absetzen?',
-  'werbungskosten'
-);
-```
-
----
-
-### Window Management
-
-#### `window.minimize()`
-
-```typescript
-await window.electronAPI.window.minimize();
-```
-
-#### `window.maximize()`
-
-```typescript
-await window.electronAPI.window.maximize();
-```
-
-#### `window.close()`
-
-```typescript
-await window.electronAPI.window.close();
-```
-
----
-
-### File System
-
-#### `fs.selectFiles(options)`
-
-Öffnet einen Dateiauswahl-Dialog.
-
-```typescript
-interface FileSelectOptions {
-  title?: string;
-  filters?: { name: string; extensions: string[] }[];
-  multiSelect?: boolean;
-}
-
-const files: string[] = await window.electronAPI.fs.selectFiles({
-  title: 'Belege auswählen',
-  filters: [
-    { name: 'Bilder', extensions: ['jpg', 'png', 'pdf'] }
-  ],
-  multiSelect: true
-});
-```
-
-#### `fs.selectFolder()`
-
-Öffnet einen Ordnerauswahl-Dialog.
-
-```typescript
-const folder: string | null = await window.electronAPI.fs.selectFolder();
-```
-
-#### `fs.openExternal(url)`
-
-Öffnet eine URL im Standard-Browser.
-
-```typescript
-await window.electronAPI.fs.openExternal('https://finanzonline.bmf.gv.at');
-```
-
----
-
-## Error Handling
-
-Alle API-Aufrufe können Fehler werfen. Empfohlenes Pattern:
-
-```typescript
-try {
-  const result = await window.electronAPI.llm.chat(messages);
-  // Erfolg
-} catch (error) {
-  if (error instanceof Error) {
-    console.error('API Error:', error.message);
-    // Fehlerbehandlung
-  }
-}
-```
-
----
-
-## TypeScript Typen
-
-Alle Typen sind in `src/types/` definiert und können importiert werden:
-
-```typescript
-import type { 
-  UserProfile, 
-  InterviewData, 
-  OCRResult, 
-  TaxAnalysis 
-} from '../types';
-```
-
----
-
-*Letzte Aktualisierung: 2026-02-05*
+If older renderer code still calls outdated methods (for example `interview.respond(...)`), migrate to the methods defined in this document and `src/main/preload.ts`.

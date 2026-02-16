@@ -1,118 +1,124 @@
-# TaxLogic.local - Projektstatus
+# TaxLogic.local - Project Status
 
-**Stand:** 2026-02-11
-**Version:** 1.0.0-alpha
+Date: 2026-02-16  
+Version: 1.0.0-alpha
 
 ---
 
 ## Executive Summary
 
-| Bereich | Status | Details |
-|---------|--------|---------|
-| **Phase 1 (MVP)** | Abgeschlossen | Electron + React Grundstruktur |
-| **Phase 2 (Core Features)** | Abgeschlossen | Backend-Services, Agents, RAG |
-| **Build & Installer** | Funktioniert | Squirrel mit Desktop-Shortcuts |
-| **Tests** | 163 Tests | Unit Tests fuer alle Services |
-| **Linting** | Konfiguriert | ESLint mit TypeScript und React |
-| **Dokumentation** | Vollstaendig | README, Setup, Architektur, User Guide, API |
-| **Docker Ollama** | Dokumentiert | Docker-Anleitung mit Embedding-Modell |
+TaxLogic.local has completed the audit top-fix implementation wave for tax-rule correctness, IPC/input hardening, logging redaction, RAG year versioning, and CI quality/security gates.
+
+Current release posture is "alpha ready with guarded production policy":
+
+| Area | Status | Notes |
+|---|---|---|
+| Tax rules 2024-2026 | Done | Central rule packs in `config/tax-rules/` |
+| Runtime stale/missing rule block | Done | `analysis/forms/guide` are blocked on invalid rule state |
+| Tax year end-to-end flow | Done | UI -> preload -> IPC -> backend uses active year |
+| RAG year versioning | Done | Knowledge content split by year + mismatch warnings |
+| IPC validation hardening | Done | Zod validation added for key handler families |
+| Logging redaction | Done | Secret/input/path masking in main logger |
+| CI quality and tax-rules gates | Done | lint, type-check, test, check, verify |
+| CI security gate | Done (policy) | prod moderate + full-tree moderate |
+| Toolchain security wave (hardened) | Done | Electron/Vitest upgraded + dependency overrides validated |
 
 ---
 
-## Was ist fertig?
+## Measured Quality Gates (2026-02-16)
 
-### Phase 1 - MVP
+Executed from: `c:\Users\Legion\Documents\2026 tax\taxlogic-local`
 
-- [x] **Electron + React Foundation** - Cross-platform Desktop App
-- [x] **6 UI-Seiten** - Onboarding, Interview, Documents, Review, Export, Settings
-- [x] **Zustand State Management** - Mit localStorage-Persistenz
-- [x] **LLM Service** - 6 Provider (Ollama, LM Studio, Claude, OpenAI, Gemini, OpenAI-Compatible)
-- [x] **SQLite Database** - sql.js (reines JS, keine nativen Abhaengigkeiten)
-
-### Phase 2 - Core Features
-
-- [x] **OCR Service** - Tesseract.js fuer Belege
-- [x] **Document Organizer** - KI-gestuetzte Kategorisierung
-- [x] **Form Generator** - L1, L1ab, L1k PDF-Generierung mit PDFKit
-- [x] **Guide Generator** - Personalisierte Schritt-fuer-Schritt Anleitungen
-- [x] **LangGraph Workflow** - 6-Node Steuererklaerungsprozess
-- [x] **Multi-Agent System**
-  - Interviewer Agent (25 Fragen mit Validierung)
-  - Document Inspector Agent (OCR + Klassifizierung)
-  - Analyzer Agent (Oesterreichische Steuerberechnung)
-- [x] **RAG System** - Wissensbasis mit 8 Steuerrecht-Dokumenten
-  - Embeddings (Ollama nomic-embed-text, 768-dim)
-  - In-Memory Vector Store
-  - Semantic Retriever mit Quellenangaben
-- [x] **IPC Integration** - 30+ Kanaele, typisiertes Preload
-- [x] **Onboarding Wizard** - 4-Schritt Einrichtungsassistent
-
-### Bug-Fixes & Stabilisierung
-
-- [x] **17 kritische Bugs behoben** (Commit f3b006b)
-- [x] **Blank Page Fix** - webpack-asset-relocator-loader aus Renderer gefiltert
-- [x] **EPIPE Crash-Loop** - Error Handler auf PDF-Streams + Logger
-- [x] **sql.js webpack external** - CommonJS module.exports Fehler
-- [x] **dotenv Timing** - Lazy Config statt Module-Init-Time
-- [x] **Interview Response Types** - IPC gibt Objekt zurueck, nicht String
-- [x] **ReviewPage defensive** - .map() auf undefined verhindert
-- [x] **KnowledgeBase non-blocking** - App startet ohne Embedding-Modell
-- [x] **Squirrel Installer** - Desktop/Startmenue-Shortcuts + Install-Dialog
+- `npm run lint`: pass
+- `npm run type-check`: pass
+- `npm test`: pass (10 files, 172 tests)
+- `npm run tax-rules:doctor`: pass
+- `npm run package`: pass
+- `npm audit --omit=dev --audit-level=moderate`: pass (0 vulnerabilities)
+- `npm audit --audit-level=moderate`: pass
+- Full-tree audit snapshot: `5 low vulnerabilities` (0 moderate, 0 high, 0 critical)
 
 ---
 
-## Test-Status
+## Delivered in This Wave
 
-```
-Test Framework: Vitest
-Test Files: 163 Tests (alle bestanden)
-E2E Framework: Playwright (konfiguriert)
-```
+## 1. Tax Rule Engine
 
-### Unit Tests
+- `src/backend/taxRules/types.ts`
+- `src/backend/taxRules/schema.ts`
+- `src/backend/taxRules/loader.ts`
+- `src/backend/taxRules/status.ts`
+- `config/tax-rules/2024.json`
+- `config/tax-rules/2025.json`
+- `config/tax-rules/2026.json`
+- `config/tax-sources/2024/summary.json`
+- `config/tax-sources/2025/summary.json`
+- `config/tax-sources/2026/summary.json`
 
-| Bereich | Tests | Status |
-|---------|-------|--------|
-| Analyzer Agent | Steuerberechnung, Deductions, Pendler | Bestanden |
-| LLM Service | Connection, Provider-Switching | Bestanden |
-| DB Service | CRUD, Schema | Bestanden |
-| Form Generator | PDF, Feldmapping | Bestanden |
-| OCR Service | Texterkennung | Bestanden |
-| Interview Agent | Fragen, Validierung | Bestanden |
+## 2. Runtime Gating and Tax Year Control
 
----
+- Hard block when rule state is not `ok`: `src/main/ipcHandlers.ts`
+- Tax-year-aware interview start: `src/main/preload.ts`, `src/main/ipcHandlers.ts`, `src/renderer/pages/InterviewPage.tsx`
+- Persistent year selection: `src/renderer/components/Sidebar.tsx`, `src/renderer/pages/SettingsPage.tsx`
 
-## Bekannte Einschraenkungen
+## 3. RAG Year Versioning
 
-1. **Squirrel Installer** - Kein Ordnerwahl-Dialog (Squirrel-Limitation)
-2. **PDF OCR** - Begrenzt (nur Text-PDFs, kein Image-basiertes OCR)
-3. **Embedding-Modell erforderlich** - nomic-embed-text muss separat installiert werden
-4. **Nur Deutsch** - Kein Multi-Language Support
+- Year-aware knowledge loading: `src/backend/rag/knowledgeBase.ts`
+- Source-year metadata and mismatch warnings: `src/backend/rag/retriever.ts`
+- Knowledge packs: `config/tax-knowledge/2024/`, `config/tax-knowledge/2025/`, `config/tax-knowledge/2026/`
 
----
+## 4. Security and Quality Hardening
 
-## Naechste Schritte (Phase 3)
+- IPC schema validation: `src/main/ipcValidation.ts`
+- Secure API key flow and no plaintext fallback: `src/main/ipcHandlers.ts`
+- Redacting logger: `src/main/utils/logger.ts`
+- Browser/navigation hardening and stricter CSP split by env: `src/main/index.ts`
 
-- [ ] FinanzOnline API Integration
-- [ ] Multi-Language Support (DE/EN)
-- [ ] Cloud Backup (optional, verschluesselt)
-- [ ] Qdrant Vector Database Integration
-- [ ] E2E Tests mit Playwright
-- [ ] Custom Installer-Animation (loadingGif)
+## 5. Tooling and Governance
 
----
-
-## Git-Historie
-
-| Commit | Beschreibung |
-|--------|-------------|
-| `73fb7c6` | Squirrel Installer mit Desktop/Startmenue-Shortcuts |
-| `a9e6a55` | Interview-Crash Fix, sql.js external, README komplett ueberarbeitet |
-| `3986342` | Blank-Page, EPIPE-Crash, Mock-Daten, Onboarding ueberarbeitet |
-| `a44f998` | App-Icon, Menue-Events, CSP fuer Netzwerk-Ollama |
-| `57985ce` | Ollama Netzwerk-Support, dotenv, Live-Config-Sync |
-| `f3b006b` | 17 kritische Bugs, Testabdeckung auf 163 Tests |
+- Tax rules CLI scripts: `scripts/tax-rules/`
+- NPM scripts for check/verify/init/report/sync/doctor: `package.json`
+- CI gates: `.github/workflows/ci.yml`
+- Monthly freshness workflow: `.github/workflows/tax-rules-freshness.yml`
 
 ---
 
-*Erstellt am 2026-02-11 | TaxLogic.local v1.0.0-alpha*
+## Open Risks and Constraints
+
+1. Full-tree low findings remain through `@inquirer/prompts -> external-editor -> tmp` in Electron Forge CLI transitive dependencies.
+2. Production dependency tree is clean at moderate severity; full dependency tree is clean at moderate/high/critical.
+3. Upstream Forge dependency updates are still required to remove the remaining low advisory path without local overrides/fixups.
+
+---
+
+## Next Milestones
+
+## Milestone A: Security Toolchain Upgrade Wave
+
+1. Keep `tar` and `webpack-dev-server` overrides monitored and pinned to patched versions.
+2. Track upstream Forge transitive updates for `tmp` chain removal.
+3. Re-run full security baseline monthly and after each toolchain update.
+
+## Milestone B: Tax Rules Operations Maturity
+
+1. Add signed source snapshot workflow.
+2. Add golden-master calculation fixtures per tax year.
+3. Add release-time mandatory tax-rule verification checklist.
+
+## Milestone C: Coverage and Test Expansion
+
+1. Extend IPC integration tests across additional handler families.
+2. Add runtime block tests for stale/missing rule states.
+3. Add end-to-end year-switch regression tests.
+
+---
+
+## Related Documents
+
+- `docs/AUDIT_REPORT_2026-02-16.md`
+- `docs/IMPLEMENTATION_LOG_2026-02-16.md`
+- `docs/tax-rules-diff-2024-2026.md`
+- `docs/SECURITY_AUDIT.md`
+- `docs/QUALITY_ASSURANCE_REPORT.md`
+- `docs/TAX_RULES_RUNBOOK.md`
+- `docs/TOOLCHAIN_SECURITY_UPGRADE_PLAN.md`
